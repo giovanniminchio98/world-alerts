@@ -255,11 +255,18 @@ async function selectLocation(input, { fly = true } = {}) {
     source: input.source,
   };
   const panel = $('#location-panel');
+  // Remember the view so closing the card returns the map to where it was.
+  if (!state.selection && state.map && !state.viewBeforeSelection) state.viewBeforeSelection = state.map.getView();
   panel.hidden = false;
   document.body.classList.add('has-selection');
   panel.querySelector('.location-body').innerHTML = '<p class="loading">Checking connected sources…</p>';
   state.map?.setSelection(sel);
+  // The card changes the map's size (side column / bottom sheet): resize first
+  // so the camera move is computed for the final layout and nothing drifts.
+  state.map?.resize();
+  syncMapPadding();
   if (fly && state.map) state.map.fitRadius(sel.lon, sel.lat, sel.radiusKm);
+  else if (state.map && isMobile()) state.map.centerOn(sel.lon, sel.lat);
   await describePlace(sel);
   const thermal = await thermalNear(sel);
   if (token !== selectToken) return;
@@ -310,12 +317,32 @@ function renderCard(thermal) {
 }
 
 function clearSelection() {
+  selectToken++;
   state.selection = null;
   $('#location-panel').hidden = true;
-  document.body.classList.remove('has-selection');
+  document.body.classList.remove('has-selection', 'sheet-expanded');
   state.map?.setSelection(null);
+  state.map?.resize();
+  syncMapPadding();
+  if (state.viewBeforeSelection) state.map?.setView(state.viewBeforeSelection);
+  state.viewBeforeSelection = null;
   writeUrl();
-  $('#search-input').focus();
+  // On touch devices, focusing the search box would pop up the keyboard and
+  // shift / zoom the page, so focus the map instead.
+  if (matchMedia('(pointer: coarse)').matches) document.querySelector('.maplibregl-canvas')?.focus({ preventScroll: true });
+  else $('#search-input').focus({ preventScroll: true });
+}
+
+const isMobile = () => matchMedia('(max-width: 860px)').matches;
+
+/** On mobile the card is a bottom sheet over the map: pad the map so its centre stays visible. */
+function syncMapPadding() {
+  if (!state.map?.map) return;
+  const panel = $('#location-panel');
+  if (!isMobile() || panel.hidden) return state.map.setBottomPadding(0);
+  const mapRect = $('#map').getBoundingClientRect();
+  const sheetRect = panel.getBoundingClientRect();
+  state.map.setBottomPadding(Math.min(mapRect.height * 0.8, Math.max(0, mapRect.bottom - sheetRect.top)));
 }
 
 function writeUrl() {
@@ -386,7 +413,6 @@ async function initMap() {
     const prefs = getPrefs();
     state.map = new MapController(maplibregl, $('#map'), {
       theme: effectiveTheme(),
-      projection: prefs.projection,
       units: prefs.units,
       view: url.view,
       onReady: () => pushMapData(),
@@ -418,7 +444,7 @@ function showTab(name) {
 }
 
 function closeDrawerOnMobile() {
-  if (matchMedia('(max-width: 860px)').matches) {
+  if (isMobile()) {
     document.body.classList.remove('panel-open');
     $('#btn-layers').setAttribute('aria-expanded', 'false');
   }
@@ -469,7 +495,9 @@ function bindChrome() {
   $('#sheet-toggle').addEventListener('click', () => {
     const expanded = document.body.classList.toggle('sheet-expanded');
     $('#sheet-toggle').setAttribute('aria-expanded', String(expanded));
+    setTimeout(syncMapPadding, 250);
   });
+  window.addEventListener('resize', debounce(syncMapPadding, 200));
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && document.body.classList.contains('panel-open')) $('#panel-close').click();
   });
@@ -485,7 +513,6 @@ function bindChrome() {
       applyTheme();
       state.map?.setTheme(effectiveTheme());
     }
-    if (key === 'projection') state.map?.setProjection(prefs.projection);
     renderStrip();
     state.panel?.updateStatus(state.manifest?.sources || []);
     if (!$('#tab-list').hidden) renderList();

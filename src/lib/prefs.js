@@ -1,7 +1,7 @@
 // Viewer preferences, stored only in this browser.
 import { load, save } from './storage.js';
 
-const DEFAULTS = { units: 'km', timeMode: 'local', theme: 'system', projection: 'mercator' };
+const DEFAULTS = { units: 'km', timeMode: 'local', theme: 'system' };
 let prefs = { ...DEFAULTS, ...load('prefs', {}) };
 const listeners = new Set();
 

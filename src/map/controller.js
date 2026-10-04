@@ -58,7 +58,6 @@ export class MapController {
     this.fallback = false;
     this.hasGlyphs = true;
     this.theme = opts.theme;
-    this.projection = opts.projection || 'mercator';
     this.selection = null;
     this.marker = null;
   }
@@ -141,25 +140,11 @@ export class MapController {
     }
   }
 
-  setProjection(type) {
-    this.projection = type;
-    if (this.map?.isStyleLoaded()) this.applyProjection();
-  }
-
-  applyProjection() {
-    try {
-      this.map.setProjection({ type: this.projection === 'globe' ? 'globe' : 'mercator' });
-    } catch {
-      /* projection unsupported — stay on mercator */
-    }
-  }
-
   onStyleLoad() {
     this.styleLoaded = true;
     clearTimeout(this.styleTimer);
     registerIcons(this.map);
     this.addLayers();
-    this.applyProjection();
     for (const [cat, visible] of Object.entries(this.visibility)) this.setVisibility(cat, visible);
     if (this.selection) this.setSelection(this.selection);
     this.opts.onReady?.();
@@ -376,6 +361,19 @@ export class MapController {
   fitRadius(lon, lat, radiusKm) {
     const zoom = Math.max(2, Math.min(11, Math.log2((EARTH_RADIUS_KM * 2 * Math.PI) / (radiusKm * 4.2)) - 0.2));
     this.flyTo(lon, lat, zoom);
+  }
+
+  /** Keep the bottom sheet from covering the map centre (mobile). */
+  setBottomPadding(px) {
+    this.map?.setPadding({ top: 0, right: 0, left: 0, bottom: Math.max(0, Math.round(px)) });
+  }
+
+  setView(view) {
+    if (view) this.easeTo({ center: view.center, zoom: view.zoom });
+  }
+
+  centerOn(lon, lat) {
+    this.easeTo({ center: [lon, lat] });
   }
 
   resetWorld() {

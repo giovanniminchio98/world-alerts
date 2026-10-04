@@ -61,7 +61,8 @@ export class Panel {
         <h2 class="panel-heading">Layers</h2>
         ${LAYERS.map((l) => this.layerHtml(l, now))}
 
-        <h2 class="panel-heading">Not yet connected</h2>
+        <h2 class="panel-heading">Planned layers — no data source yet</h2>
+        <p class="muted small">These are not connected by design (no source is integrated yet); it is not a data-download problem.</p>
         <ul class="future-list">
           ${this.sources
             .filter((s) => s.implemented === false)
@@ -78,9 +79,6 @@ export class Panel {
           </label>
           <label>Theme
             <select data-pref="theme"><option value="system" ${selected(prefs.theme === 'system')}>Match system</option><option value="light" ${selected(prefs.theme === 'light')}>Light</option><option value="dark" ${selected(prefs.theme === 'dark')}>Dark</option></select>
-          </label>
-          <label>Map projection
-            <select data-pref="projection"><option value="mercator" ${selected(prefs.projection !== 'globe')}>Flat map</option><option value="globe" ${selected(prefs.projection === 'globe')}>Globe</option></select>
           </label>
         </div>
         <p class="muted small">Settings are stored only in this browser.</p>

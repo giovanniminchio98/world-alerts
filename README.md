@@ -49,7 +49,7 @@ Planned layers appear in the UI as **“not connected”** so a missing layer is
 
 Map features:
 
-- MapLibre GL JS 2D map (optional globe projection), OpenFreeMap vector basemap, automatic offline fallback to bundled country outlines if tiles cannot load, and a text incident list if WebGL is unavailable.
+- MapLibre GL JS 2D map, OpenFreeMap vector basemap, automatic offline fallback to bundled country outlines if tiles cannot load, and a text incident list if WebGL is unavailable.
 - Earthquakes sized and coloured by magnitude (blue < M3, yellow M3–4.9, orange M5–5.9, red M6+), small events clustered at low zoom, magnitudes labelled.
 - GDACS hazard icons, published alert level only (never an invented score), affected areas and cyclone tracks when GDACS publishes them, and “representative location” labelling otherwise.
 - FIRMS detections aggregated into a 1° grid at world/continental zoom and loaded as 10° tiles only for the area in view.

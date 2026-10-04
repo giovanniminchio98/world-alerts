@@ -216,7 +216,7 @@ export function buildLocationReport({
       thermalCount = row.thermal.count;
       if (row.thermal.count) {
         row.state = 'found';
-        row.headline = `${plural(row.thermal.count, 'satellite thermal detection')} found`;
+        row.headline = `${plural(row.thermal.count, 'satellite heat detection')} — possible fires, crop burning or industrial heat`;
       }
     } else {
       if (category === 'earthquake') row.items = matchEarthquakes(data, selection, filters, now);

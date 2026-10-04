@@ -210,12 +210,23 @@ p {
 }
 
 /* App shell ----------------------------------------------------------------- */
+/* Column flex (not a fixed grid of rows): banners can be hidden or dismissed
+   without shifting the map into the wrong row. */
 body.app {
   height: 100dvh;
-  display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+}
+body.app > .topbar,
+body.app > .banner,
+body.app > .status-strip {
+  flex: 0 0 auto;
+}
+body.app > .layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
 }
 
 .topbar {
@@ -671,11 +682,6 @@ body.has-selection .layout {
   color: var(--unavail);
   background: var(--unavail-soft);
 }
-.chip.status-ok,
-.chip.status-stale,
-.chip.status-failed {
-  background: none;
-}
 
 /* Map ---------------------------------------------------------------------- */
 .map-wrap {
@@ -1061,6 +1067,56 @@ body.has-selection .layout {
   margin-top: 0.4rem;
 }
 
+/* Status dialog ---------------------------------------------------------------- */
+.status-dialog {
+  width: min(92vw, 520px);
+  max-height: 85dvh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.status-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+.dialog-body {
+  padding: 1rem 1.1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dialog-head h2 {
+  font-size: 1.15rem;
+}
+.status-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.status-rows li {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.status-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 /* Status strip ---------------------------------------------------------------- */
 .status-strip {
   background: var(--surface);
@@ -1079,29 +1135,21 @@ body.has-selection .layout {
   color: var(--stale);
   font-weight: 600;
 }
-.chips {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-.chip {
+.strip-status {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  text-decoration: none;
+  gap: 0.4rem;
+  font: inherit;
   color: var(--text);
+  background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0.1rem 0.5rem 0.1rem 0.15rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.25rem;
+  min-height: 32px;
+  cursor: pointer;
 }
-.chip .status-badge {
-  padding: 0 0.35rem;
-}
-.chip-name {
-  font-weight: 600;
-}
-.chip-age {
-  color: var(--muted);
+.strip-status:hover {
+  border-color: var(--accent);
 }
 .strip-links {
   margin-left: auto;
@@ -1211,17 +1259,18 @@ body.has-selection .layout {
     left: 0;
     right: 0;
     bottom: 0;
-    max-height: 48dvh;
+    /* Fixed height (content scrolls inside) so the map padding can match it. */
+    height: 64dvh;
     z-index: 30;
     border-left: none;
     border-top: 1px solid var(--border);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -6px 24px rgb(0 0 0 / 20%);
-    transition: max-height 0.2s ease;
+    transition: height 0.2s ease;
     padding-bottom: env(safe-area-inset-bottom);
   }
   body.sheet-expanded .location-panel {
-    max-height: 88dvh;
+    height: 92dvh;
   }
   .sheet-handle {
     display: flex !important;
@@ -1251,16 +1300,10 @@ body.has-selection .layout {
     padding: 0.3rem 0.6rem;
   }
   .strip-line {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    white-space: nowrap;
+    gap: 0.3rem 0.6rem;
   }
-  .chips {
-    flex-wrap: nowrap;
-  }
-  .strip-published {
-    white-space: normal;
-    min-width: 230px;
+  .strip-links {
+    display: none;
   }
   .banner-notice {
     flex-direction: column;
@@ -1271,7 +1314,7 @@ body.has-selection .layout {
     max-width: calc(100% - 70px);
   }
   body.has-selection .toast {
-    bottom: calc(48dvh + 12px);
+    bottom: calc(64dvh + 12px);
   }
 }
 
@@ -1409,4 +1452,30 @@ body.page {
     grid-template-columns: 1fr;
     gap: 0.1rem;
   }
+}
+
+/* Collapsible category rows in the location card. */
+.cat-expand {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0.35rem 0 0.1rem 1.65rem;
+  cursor: pointer;
+  min-height: 32px;
+}
+.cat-expand .when-open,
+.cat-expand[aria-expanded='true'] .when-closed {
+  display: none;
+}
+.cat-expand[aria-expanded='true'] .when-open {
+  display: inline;
+}
+.cat-expand[aria-expanded='true'] .chev {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+.cat-items[hidden] {
+  display: none;
 }

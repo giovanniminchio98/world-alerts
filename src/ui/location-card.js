@@ -63,18 +63,24 @@ function thermalHtml(t, catIndex, now) {
           <li class="event-item">
             <button type="button" class="event-toggle" aria-expanded="false" data-cat="${catIndex}" data-thermal="${i}">
               <span class="sev-badge">${d.confidenceLabel} confidence</span>
-              <span class="event-title">Satellite thermal detection · ${d.sensor || 'sensor n/a'}</span>
+              <span class="event-title">Heat detection · ${d.sensor || 'sensor n/a'}</span>
               <span class="event-meta">${fmtDist(d.km)} ${d.direction} · ${fmtAgo(d.timeMs, now)}</span>
             </button>
             <div class="event-detail" hidden></div>
           </li>`,
       )}
     </ul>
-    <p class="caveat">Thermal detections can include wildfires, agricultural burning, industrial heat sources or other thermal anomalies.</p>`;
+    <p class="caveat">A satellite saw an unusually hot spot here. It may be a wildfire, but it can also be crop or waste burning, a factory, a gas flare or another hot surface — especially in and around cities.</p>`;
 }
+
+/** Events start expanded only when the source classifies one as high severity. */
+const startsOpen = (cat) => cat.category !== 'thermal' && cat.items.some((i) => i.high);
 
 function categoryHtml(cat, catIndex, now) {
   const shown = cat.items.slice(0, MAX_ITEMS);
+  const count = cat.category === 'thermal' ? cat.thermal?.count || 0 : cat.items.length;
+  const open = startsOpen(cat);
+  const label = cat.category === 'thermal' ? 'nearest detections' : count === 1 ? 'event' : `${count} events`;
   return html`
     <li class="cat-row state-${cat.state}">
       <div class="cat-head">
@@ -85,11 +91,35 @@ function categoryHtml(cat, catIndex, now) {
           ${cat.note ? html`<p class="muted small">${cat.note}</p>` : ''}
           ${cat.freshness ? html`<p class="cat-fresh">${cat.freshness}</p>` : ''}
         </div>
-        <span class="cat-source">${cat.sourceName}${cat.state !== 'not-connected' ? html` ${statusBadge(cat.status)}` : ''}</span>
+        <span class="cat-source">${cat.sourceName} ${statusBadge(cat.status)}</span>
       </div>
-      ${shown.length ? html`<ul class="event-list">${shown.map((it, i) => itemHtml(it, i, catIndex, now))}</ul>` : ''}
-      ${cat.items.length > MAX_ITEMS ? html`<p class="muted small">…and ${cat.items.length - MAX_ITEMS} more within the radius (see map or list view).</p>` : ''}
-      ${cat.category === 'thermal' ? thermalHtml(cat.thermal, catIndex, now) : ''}
+      ${count
+        ? html`
+          <button type="button" class="cat-expand" aria-expanded="${String(open)}" aria-controls="cat-items-${catIndex}">
+            <span class="when-closed">Show ${label}</span><span class="when-open">Hide ${label}</span> <span aria-hidden="true" class="chev">▾</span>
+          </button>
+          <div class="cat-items" id="cat-items-${catIndex}" ${open ? '' : raw('hidden')}>
+            ${shown.length ? html`<ul class="event-list">${shown.map((it, i) => itemHtml(it, i, catIndex, now))}</ul>` : ''}
+            ${cat.items.length > MAX_ITEMS ? html`<p class="muted small">…and ${cat.items.length - MAX_ITEMS} more within the radius (see map or list view).</p>` : ''}
+            ${cat.category === 'thermal' ? thermalHtml(cat.thermal, catIndex, now) : ''}
+          </div>`
+        : ''}
+    </li>`;
+}
+
+/** Categories with no connected source are listed together in one line. */
+function notConnectedHtml(cats) {
+  if (!cats.length) return '';
+  return html`
+    <li class="cat-row state-not-connected">
+      <div class="cat-head">
+        <span class="cat-icon" aria-hidden="true">—</span>
+        <div class="cat-text">
+          <h4 class="cat-label">Not covered yet</h4>
+          <p class="cat-headline">${cats.map((c) => c.label).join(' · ')}</p>
+          <p class="muted small">No data source is connected for these categories yet — this is not a data error, and it does not mean there are no outages.</p>
+        </div>
+      </div>
     </li>`;
 }
 
@@ -160,7 +190,10 @@ export function renderLocationCard(container, ctx) {
       </div>
       ${ctx.filtersNote ? html`<p class="filters-note small">Active filters: ${ctx.filtersNote}</p>` : ''}
       <h3 class="section-title">By category</h3>
-      <ul class="cat-list">${report.categories.map((c, i) => categoryHtml(c, i, now))}</ul>
+      <ul class="cat-list">
+        ${report.categories.map((c, i) => (c.state === 'not-connected' ? '' : categoryHtml(c, i, now)))}
+        ${notConnectedHtml(report.categories.filter((c) => c.state === 'not-connected'))}
+      </ul>
       <p class="coverage-note">${report.coverageNote}</p>
       <details class="card-sources">
         <summary>Data sources, status and refresh times</summary>
@@ -176,6 +209,14 @@ export function renderLocationCard(container, ctx) {
   container.querySelector('[data-action="close"]').addEventListener('click', ctx.onClose);
   container.querySelector('[data-action="share"]').addEventListener('click', ctx.onShare);
   container.querySelector('[data-action="zoom"]').addEventListener('click', ctx.onZoom);
+
+  container.querySelectorAll('.cat-expand').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const open = btn.getAttribute('aria-expanded') !== 'true';
+      btn.setAttribute('aria-expanded', String(open));
+      document.getElementById(btn.getAttribute('aria-controls')).hidden = !open;
+    });
+  });
 
   // Expand / collapse event details in place.
   container.querySelectorAll('.event-toggle').forEach((btn) => {

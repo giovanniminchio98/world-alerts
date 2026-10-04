@@ -8,6 +8,7 @@ import { severityBadge, incidentDetail, thermalDetail } from './incident-detail.
 import { statusBadge } from './status-ui.js';
 import { DISCLAIMER } from './disclaimer.js';
 import { categoryIcon } from './category-style.js';
+import { closeButtonHtml } from './close-button.js';
 import { emergencyRows, telHref } from '../lib/emergency.js';
 
 const MAX_ITEMS = 8;
@@ -118,6 +119,7 @@ function emergencyHtml(ctx, countryLabel) {
             )}
           </ul>`
         : html`<p class="small">No emergency number is listed for this location. Check local official sources.</p>`}
+      <p class="em-tip"><strong>Tip:</strong> take a screenshot of these numbers so you have them even without internet.</p>
       <p class="em-caveat">From Wikipedia's list of emergency numbers (community-compiled, CC BY-SA). Numbers can change — confirm locally. On many mobile networks 112 also reaches emergency services.</p>
     </section>`;
 }
@@ -184,7 +186,7 @@ export function renderLocationCard(container, ctx) {
         <div class="card-actions">
           <button type="button" class="icon-btn" data-action="zoom" aria-label="Zoom map to this location" title="Zoom to location">⌖</button>
           <button type="button" class="icon-btn" data-action="share" aria-label="Share link to this location" title="Share">⤴</button>
-          <button type="button" class="icon-btn" data-action="close" aria-label="Close location status" title="Close">✕</button>
+          ${closeButtonHtml('Close location status', 'data-action="close"')}
         </div>
       </div>
       <div class="card-controls">
@@ -194,7 +196,7 @@ export function renderLocationCard(container, ctx) {
         </select>
         <span class="muted small">Time window: ${ctx.windowLabel}</span>
         <button type="button" class="btn btn-small save-offline" data-action="save" aria-pressed="${String(Boolean(ctx.saved))}">
-          ${ctx.saved ? '★ Saved for offline' : '☆ Save for offline'}
+          <span class="star" aria-hidden="true">${ctx.saved ? '★' : '☆'}</span> ${ctx.saved ? 'Saved for offline' : 'Save for offline'}
         </button>
       </div>
       <p class="checked-at small">

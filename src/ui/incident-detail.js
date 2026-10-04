@@ -57,6 +57,7 @@ function disasterBody(f, now, origin) {
     ${row('Countries / region', countries)}
     ${relativeLine(p, origin, f.geometry)}
     ${row('Geometry', p.affectedGeometry ? 'Affected area published by source (shown on map)' : p.locationPrecision === 'representative' ? 'Representative event location — affected area may be broader.' : 'Event location')}
+    ${a.track ? row('Path', 'Dotted line on the map: the storm’s track as published by GDACS (past positions and forecast). Arrows point in the direction of travel.') : ''}
     ${row('Source last modified', timeHtml(p.sourceUpdatedUtc, now))}
     ${p.summary ? html`<p class="detail-summary">${p.summary}</p>` : ''}
   `;
@@ -72,7 +73,7 @@ function naturalBody(f, now, origin) {
     ${row('First reported', timeHtml(p.eventStartUtc, now))}
     ${row('Latest update', timeHtml(p.sourceUpdatedUtc, now))}
     ${relativeLine(p, origin, f.geometry)}
-    ${row('Geometry', p.affectedGeometry ? 'Affected area published (shown on map)' : a.track ? `Latest of ${a.positions} reported positions; path shown on map` : p.locationPrecision === 'representative' ? 'Representative location — affected area may be broader.' : 'Event location')}
+    ${row('Geometry', p.affectedGeometry ? 'Affected area published (shown on map)' : a.track ? `Latest of ${a.positions} reported positions. The dotted line is the path so far; arrows point in the direction of travel.` : p.locationPrecision === 'representative' ? 'Representative location — affected area may be broader.' : 'Event location')}
     ${others.length ? row('Other sources', html`${others.map((s, i) => html`${i ? ', ' : ''}<a href="${s.url}" target="_blank" rel="noopener noreferrer">${s.id}</a>`)}`) : ''}
   `;
 }

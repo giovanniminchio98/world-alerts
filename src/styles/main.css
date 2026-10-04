@@ -728,9 +728,39 @@ body.has-selection .layout {
   color: var(--text);
   border-radius: var(--radius) !important;
   box-shadow: var(--shadow) !important;
-  padding: 0.85rem 0.9rem 0.8rem !important;
-  max-height: min(52vh, 460px);
+  padding: 0 !important;
+  max-height: min(42vh, 360px);
   overflow: auto;
+  overscroll-behavior: contain;
+}
+/* Popups sit above the map buttons (reset / centre). */
+.maplibregl-popup {
+  z-index: 7;
+}
+.incident-popup .incident-detail {
+  padding: 0 0.75rem 0.7rem;
+  font-size: 0.84rem;
+}
+/* Header (type, title, close) stays visible while the details scroll. */
+.incident-popup .detail-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 -0.75rem 0.45rem;
+  padding: 0.6rem 0.6rem 0.5rem 0.75rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.incident-popup .detail-head > div {
+  flex: 1;
+  min-width: 0;
+}
+.incident-popup .detail-title {
+  font-size: 0.95rem;
+}
+.incident-popup .detail-head .close-btn {
+  flex-shrink: 0;
+  margin-left: 0.25rem;
 }
 .maplibregl-popup-tip {
   border-top-color: var(--surface) !important;
@@ -755,7 +785,6 @@ body.has-selection .layout {
   gap: 0.6rem;
   align-items: flex-start;
   margin-bottom: 0.5rem;
-  padding-right: 1.4rem;
 }
 .hazard-icon {
   flex-shrink: 0;
@@ -1671,4 +1700,150 @@ html {
   border: 1.5px dashed var(--c);
   background-color: color-mix(in srgb, var(--c) 16%, transparent);
   background-size: 12px 12px;
+}
+
+/* Shared close (X) button — same look everywhere. */
+.close-btn {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  line-height: 0;
+}
+.close-btn:hover {
+  background: var(--surface-2);
+}
+.close-btn svg {
+  display: block;
+}
+
+/* Location card: name and actions stay at the top while the card scrolls. */
+.card-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: -0.9rem -1rem 0;
+  padding: 0.75rem 1rem 0.6rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+@media (max-width: 860px) {
+  .card-head {
+    top: 26px; /* below the sticky sheet handle */
+    margin-top: -0.2rem;
+  }
+}
+@media (max-width: 860px) {
+  .close-btn.only-mobile {
+    display: inline-grid !important;
+  }
+}
+.panel-top {
+  padding-bottom: 0.4rem;
+}
+
+/* Saved for offline: a clear filled gold star when saved. */
+.save-offline .star {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.save-offline[aria-pressed='true'] {
+  background: color-mix(in srgb, #e0a100 16%, var(--surface));
+  border-color: #c98f00;
+  color: var(--text);
+}
+.save-offline[aria-pressed='true'] .star,
+.saved-star,
+.saved-name {
+  color: #d99a00;
+}
+.saved-name {
+  color: var(--text);
+}
+.saved-name::first-letter {
+  color: #d99a00;
+}
+#btn-saved {
+  position: relative;
+}
+.saved-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #d99a00;
+  color: #1b1300;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+.saved-count[hidden] {
+  display: none;
+}
+.saved-places.flash {
+  outline: 3px solid #d99a00;
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+.em-tip {
+  font-size: 0.8rem;
+}
+@media (max-width: 420px) {
+  .brand-name {
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+  }
+  .top-actions .btn {
+    width: 34px !important;
+    min-height: 34px;
+  }
+  .top-actions {
+    gap: 0.25rem;
+  }
+}
+
+/* Compact popup header on small screens: one-line kicker, two-line title. */
+.incident-popup .detail-kicker {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.66rem;
+}
+.incident-popup .detail-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0.05rem 0 0.25rem;
+}
+.incident-popup .hazard-icon {
+  width: 24px;
+  height: 24px;
+}
+.incident-popup .sev-badge {
+  font-size: 0.72rem;
+}
+.incident-popup .detail-head .close-btn {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+}
+.incident-popup .kv {
+  grid-template-columns: minmax(6.5rem, 36%) 1fr;
+}
+/* Keep the Saved places heading clear of the menu's fixed title when jumped to. */
+.saved-places {
+  scroll-margin-top: 64px;
 }

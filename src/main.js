@@ -1,6 +1,6 @@
 // Main map page: loads published data, renders map + panels, handles selection.
 import './styles/main.css';
-import { $, debounce } from './lib/dom.js';
+import { $, debounce, prefersReducedMotion } from './lib/dom.js';
 import { applyTheme, effectiveTheme, getPrefs, onPrefsChange, setPref } from './lib/prefs.js';
 import { load, save } from './lib/storage.js';
 import { loadDataFile, loadManifest, loadPublishInfo, incidentPath, sourceVersion } from './lib/data.js';
@@ -11,7 +11,7 @@ import { readUrlState, writeUrlState, buildUrl } from './lib/url-state.js';
 import { countryAt } from './lib/countries.js';
 import { loadEmergencyNumbers } from './lib/emergency.js';
 import { registerServiceWorker, watchConnectivity } from './lib/pwa.js';
-import { addSaved, isSaved, removeSaved } from './lib/saved-places.js';
+import { addSaved, isSaved, listSaved, removeSaved } from './lib/saved-places.js';
 import { renderSavedPlaces } from './ui/saved-places.js';
 import { loadCities, nearestCity } from './lib/geocode.js';
 import { fmtDist, fmtTime, countryName } from './lib/format.js';
@@ -313,6 +313,7 @@ async function toggleSaved(sel, thermal) {
   } else {
     addSaved(sel);
     toast(`Saving ${sel.name} for offline use…`);
+    renderSaved();
     // On a first visit the offline cache may still be installing: wait briefly for it.
     if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
       await Promise.race([navigator.serviceWorker.ready, new Promise((r) => setTimeout(r, 5000))]);
@@ -322,7 +323,7 @@ async function toggleSaved(sel, thermal) {
     const tiles = (await state.map?.prefetchArea(sel.lon, sel.lat, Math.max(sel.radiusKm, 50))) || 0;
     toast(
       'serviceWorker' in navigator && navigator.serviceWorker.controller
-        ? `${sel.name} saved — available offline with its emergency numbers${tiles ? ` and ${tiles} map tiles` : ''}.`
+        ? `${sel.name} saved for offline use${tiles ? ` (${tiles} map tiles)` : ''}. Find it under ★ Saved at the top.`
         : `${sel.name} saved on this device. Reload the page once while online to make it available offline.`,
     );
   }
@@ -331,6 +332,10 @@ async function toggleSaved(sel, thermal) {
 }
 
 function renderSaved() {
+  const count = listSaved().length;
+  const badge = $('#btn-saved .saved-count');
+  badge.hidden = count === 0;
+  badge.textContent = String(count);
   renderSavedPlaces($('#saved-places'), {
     onOpen: (p) => {
       closeDrawerOnMobile();
@@ -478,6 +483,14 @@ function onFiltersChange(filters) {
 
 function bindChrome() {
   $('#btn-locate').addEventListener('click', locate);
+  $('#btn-saved').addEventListener('click', () => {
+    // Open the menu on phones, then bring the Saved places list into view.
+    if (isMobile() && !document.body.classList.contains('panel-open')) $('#btn-layers').click();
+    const saved = $('#saved-places');
+    saved.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    saved.classList.add('flash');
+    setTimeout(() => saved.classList.remove('flash'), 1200);
+  });
   $('#btn-share').addEventListener('click', share);
   $('#btn-reset').addEventListener('click', () => state.map?.resetWorld());
   $('#btn-centre').addEventListener('click', () => {

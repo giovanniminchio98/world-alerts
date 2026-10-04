@@ -264,7 +264,7 @@ export function describeActiveFilters(f, defaults) {
   if (f.disaster.levels.length !== defaults.disaster.levels.length) parts.push(`GDACS levels: ${f.disaster.levels.join(', ') || 'none'}`);
   if (f.disaster.types.length !== defaults.disaster.types.length) parts.push(`hazard types: ${f.disaster.types.join(', ') || 'none'}`);
   if (f.natural.types.length !== defaults.natural.types.length) parts.push(`natural event types: ${f.natural.types.length} of ${defaults.natural.types.length}`);
-  if (f.thermal.minConfidence > 0) parts.push(f.thermal.minConfidence === 2 ? 'high-confidence detections only' : 'nominal/high-confidence detections');
+  if (f.thermal.minConfidence !== defaults.thermal.minConfidence) parts.push(f.thermal.minConfidence === 2 ? 'high-confidence heat spots only' : f.thermal.minConfidence === 1 ? 'nominal/high-confidence heat spots' : 'all heat spots incl. low confidence');
   if (Array.isArray(f.thermal.sensors)) parts.push('some sensors hidden');
   if (f.weather.severities.length !== defaults.weather.severities.length) parts.push(`NWS severity: ${f.weather.severities.join(', ') || 'none'}`);
   return parts.join('; ');

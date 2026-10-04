@@ -6,6 +6,7 @@ import { HINT_COLORS, FIRE_COLORS } from '../lib/colors.js';
 import { loadCountries } from '../lib/countries.js';
 import { EARTH_RADIUS_KM } from '../shared/geo.js';
 import { prefersReducedMotion } from '../lib/dom.js';
+import { closeButtonElement } from '../ui/close-button.js';
 
 /**
  * Basemaps from OpenFreeMap (https://openfreemap.org): OpenStreetMap-based
@@ -27,8 +28,8 @@ const EMPTY = { type: 'FeatureCollection', features: [] };
 /** Layer ids grouped by data category, for visibility toggles. */
 const CATEGORY_LAYERS = {
   weather: ['gim-nws-fill', 'gim-nws-pattern', 'gim-nws-line'],
-  disaster: ['gim-gdacs-area-fill', 'gim-gdacs-area-pattern', 'gim-gdacs-area-line', 'gim-gdacs-track', 'gim-gdacs-glow', 'gim-gdacs-halo', 'gim-gdacs-icon'],
-  natural: ['gim-eonet-area-fill', 'gim-eonet-area-pattern', 'gim-eonet-area-line', 'gim-eonet-track', 'gim-eonet-glow', 'gim-eonet-halo', 'gim-eonet-icon'],
+  disaster: ['gim-gdacs-area-fill', 'gim-gdacs-area-pattern', 'gim-gdacs-area-line', 'gim-gdacs-track', 'gim-gdacs-track-arrows', 'gim-gdacs-glow', 'gim-gdacs-halo', 'gim-gdacs-icon'],
+  natural: ['gim-eonet-area-fill', 'gim-eonet-area-pattern', 'gim-eonet-area-line', 'gim-eonet-track', 'gim-eonet-track-arrows', 'gim-eonet-glow', 'gim-eonet-halo', 'gim-eonet-icon'],
   thermal: ['gim-fires-summary', 'gim-fires-summary-count', 'gim-fires-detail'],
   earthquake: ['gim-eq-cluster', 'gim-eq-cluster-count', 'gim-eq-minor', 'gim-eq-major', 'gim-eq-major-label', 'gim-eq-minor-label'],
 };
@@ -194,7 +195,23 @@ export class MapController {
       m.addLayer({ id: `gim-${src}-area-fill`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-color': ['get', 'hcolor'], 'fill-opacity': 0.16 } }, below);
       m.addLayer({ id: `gim-${src}-area-pattern`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-pattern': pattern, 'fill-opacity': 0.9 } }, below);
       m.addLayer({ id: `gim-${src}-area-line`, type: 'line', source: `gim-${src}-areas`, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 1.6, 'line-dasharray': [3, 2] } }, below);
-      m.addLayer({ id: `gim-${src}-track`, type: 'line', source: `gim-${src}-tracks`, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 2.2, 'line-dasharray': [1, 1.5] } }, below);
+      m.addLayer({ id: `gim-${src}-track`, type: 'line', source: `gim-${src}-tracks`, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 2.4, 'line-dasharray': [1, 1.5] } }, below);
+      // Arrows along a storm's path show its direction of travel (towards the latest position).
+      m.addLayer({
+        id: `gim-${src}-track-arrows`,
+        type: 'symbol',
+        source: `gim-${src}-tracks`,
+        layout: {
+          'symbol-placement': 'line',
+          'symbol-spacing': ['interpolate', ['linear'], ['zoom'], 1, 40, 6, 90],
+          'icon-image': 'track-arrow',
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.6, 6, 0.95],
+          'icon-rotation-alignment': 'map',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+        paint: { 'icon-color': ['get', 'hcolor'], 'icon-halo-color': halo, 'icon-halo-width': 1.5 },
+      });
       // Events with only a point get a soft glow in the hazard colour — it marks
       // "around here" without drawing a boundary the source never published.
       m.addLayer(
@@ -477,13 +494,17 @@ export class MapController {
     // part of the view so the whole popup fits on screen.
     const height = this.map.getContainer().clientHeight;
     this.easeTo({ center: lngLat, offset: [0, Math.round(height * 0.28)] });
-    this.currentPopup = new this.ml.Popup({ maxWidth: '340px', anchor: 'bottom', closeButton: true, focusAfterOpen: false, className: 'incident-popup' })
+    // The header (type, title, close) stays fixed at the top while details scroll.
+    const close = closeButtonElement('Close details');
+    (element.querySelector('.detail-head') || element).append(close);
+    this.currentPopup = new this.ml.Popup({ maxWidth: '300px', anchor: 'bottom', closeButton: false, focusAfterOpen: false, className: 'incident-popup' })
       .setLngLat(lngLat)
       .setDOMContent(element)
       .addTo(this.map);
-    // Move keyboard focus into the popup without scrolling its content.
-    this.currentPopup.getElement()?.querySelector('.maplibregl-popup-close-button')?.focus({ preventScroll: true });
-    return this.currentPopup;
+    const popup = this.currentPopup;
+    close.addEventListener('click', () => popup.remove());
+    close.focus({ preventScroll: true });
+    return popup;
   }
 
   closePopup() {

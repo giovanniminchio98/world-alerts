@@ -265,7 +265,23 @@ export function patternDataUrl(hazard) {
   return c.toDataURL('image/png');
 }
 
+/** White chevron used as an SDF icon along tracks, so it can take the hazard colour. */
+export function drawArrow() {
+  const { ctx } = canvas(24, 24);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3.4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(8, 5);
+  ctx.lineTo(16, 12);
+  ctx.lineTo(8, 19);
+  ctx.stroke();
+  return ctx.getImageData(0, 0, 24 * RATIO, 24 * RATIO);
+}
+
 export function registerIcons(map) {
+  if (!map.hasImage('track-arrow')) map.addImage('track-arrow', drawArrow(), { pixelRatio: RATIO, sdf: true });
   for (const hazard of Object.keys(HAZARDS)) {
     if (!map.hasImage(`hz-${hazard}`)) map.addImage(`hz-${hazard}`, drawIcon(hazard), { pixelRatio: RATIO });
     if (!map.hasImage(`pat-${hazard}`)) map.addImage(`pat-${hazard}`, drawPattern(hazard), { pixelRatio: RATIO });

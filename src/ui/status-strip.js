@@ -4,6 +4,7 @@ import { html, setHtml } from '../lib/dom.js';
 import { describeSourceStatus, isPublishOlderThanExpected } from '../shared/status.js';
 import { fmtAgo, fmtTime } from '../lib/format.js';
 import { statusBadge, statusSentence } from './status-ui.js';
+import { closeButtonHtml } from './close-button.js';
 
 let dialogBound = false;
 
@@ -20,7 +21,7 @@ function dialogBody(manifest, publish, sources, now) {
   return html`
     <div class="dialog-head">
       <h2 id="status-dialog-title">Data freshness</h2>
-      <button type="button" class="icon-btn" data-close aria-label="Close data freshness">✕</button>
+      ${closeButtonHtml('Close data freshness', 'data-close')}
     </div>
     <p class="small">
       Last published update: <strong>${fmtTime(manifest.generatedAtUtc)}</strong> (${fmtAgo(manifest.generatedAtUtc, now)}).

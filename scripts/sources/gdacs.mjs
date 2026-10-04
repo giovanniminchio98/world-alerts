@@ -87,18 +87,24 @@ export function parseGeometryResponse(json) {
     const cls = String(f?.properties?.Class || f?.properties?.class || '');
     if (!g) continue;
     if ((g.type === 'Polygon' || g.type === 'MultiPolygon') && !/cone/i.test(cls)) {
-      // Simplify relative to the area's size: a Europe-wide drought does not
-      // need street-level detail, a local flood keeps its shape.
-      const b = geometryBbox(g);
-      const diag = b ? Math.hypot(b[2] - b[0], b[3] - b[1]) : 1;
-      const tolerance = Math.min(0.25, Math.max(0.01, diag / 300));
-      const s = simplifyGeometry(g, tolerance, tolerance >= 0.05 ? 2 : 3);
+      const s = simplifyBySize(g);
       if (s) polygons.push(s);
     } else if (g.type === 'LineString' || g.type === 'MultiLineString') {
       lines.push(g.type === 'LineString' ? simplifyGeometry(g, 0.02, 3) : g);
     }
   }
   return { polygons, lines };
+}
+
+/**
+ * Simplify relative to the area's size: a Europe-wide drought does not need
+ * street-level detail, a local flood keeps its shape.
+ */
+export function simplifyBySize(g) {
+  const b = geometryBbox(g);
+  const diag = b ? Math.hypot(b[2] - b[0], b[3] - b[1]) : 1;
+  const tolerance = Math.min(0.25, Math.max(0.01, diag / 300));
+  return simplifyGeometry(g, tolerance, tolerance >= 0.05 ? 2 : 3);
 }
 
 export async function fetchRaw(ctx) {
@@ -350,7 +356,7 @@ function enrich(incident, geometries) {
   const geo = geometries?.[geometryKey(type, id, p.attributes.episodeId ?? '')];
   if (!geo) return incident;
   if (!p.affectedGeometry && geo.polygons?.length) {
-    p.affectedGeometry = mergePolygons(geo.polygons);
+    p.affectedGeometry = mergePolygons(geo.polygons.map(simplifyBySize).filter(Boolean));
     if (!GDACS_POINT_HAZARDS.has(type)) {
       p.locationPrecision = 'area';
       p.disclaimer = 'GDACS is an alert and coordination source; assessments can change as events evolve.';

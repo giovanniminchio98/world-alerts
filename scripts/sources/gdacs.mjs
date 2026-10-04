@@ -30,7 +30,7 @@ function listEndpoints(now) {
   const search = (page) =>
     `${API}/events/geteventlist/SEARCH?eventlist=EQ;TC;FL;VO;DR;WF&fromDate=${isoDay(now - 21 * 86_400_000)}&toDate=${isoDay(now + 86_400_000)}&alertlevel=Green;Orange;Red&pagesize=100&pagenumber=${page}`;
   return [
-    { name: 'SEARCH', urls: [search(1), search(2), search(3)] },
+    { name: 'SEARCH', urls: [1, 2, 3, 4, 5].map(search) },
     { name: 'EVENTS4APP', urls: [`${API}/events/geteventlist/EVENTS4APP`] },
     { name: 'MAP', urls: [`${API}/events/geteventlist/MAP`] },
   ];
@@ -87,8 +87,12 @@ export function parseGeometryResponse(json) {
     const cls = String(f?.properties?.Class || f?.properties?.class || '');
     if (!g) continue;
     if ((g.type === 'Polygon' || g.type === 'MultiPolygon') && !/cone/i.test(cls)) {
-      let s = simplifyGeometry(g, 0.02, 3);
-      if (s && JSON.stringify(s.coordinates).length > 200_000) s = simplifyGeometry(g, 0.06, 2);
+      // Simplify relative to the area's size: a Europe-wide drought does not
+      // need street-level detail, a local flood keeps its shape.
+      const b = geometryBbox(g);
+      const diag = b ? Math.hypot(b[2] - b[0], b[3] - b[1]) : 1;
+      const tolerance = Math.min(0.25, Math.max(0.01, diag / 300));
+      const s = simplifyGeometry(g, tolerance, tolerance >= 0.05 ? 2 : 3);
       if (s) polygons.push(s);
     } else if (g.type === 'LineString' || g.type === 'MultiLineString') {
       lines.push(g.type === 'LineString' ? simplifyGeometry(g, 0.02, 3) : g);
@@ -105,7 +109,7 @@ export async function fetchRaw(ctx) {
   const wanted = listEventRefs(raw)
     .filter((r) => !cache[r.key])
     .sort((a, b) => (rank[a.level.toLowerCase()] ?? 3) - (rank[b.level.toLowerCase()] ?? 3));
-  const max = Number(process.env.GDACS_MAX_GEOMETRY_FETCHES) || 40;
+  const max = Number(process.env.GDACS_MAX_GEOMETRY_FETCHES) || 150;
   let fetched = 0;
   let failed = 0;
   await mapLimit(wanted.slice(0, max), 3, async (r) => {

@@ -7,11 +7,12 @@ import { NATURAL_TYPES } from '../shared/severity.js';
 
 export const DEFAULT_FILTERS = {
   window: '24h',
-  layers: { earthquake: true, disaster: true, natural: true, thermal: true, weather: true },
+  // Satellite heat spots are numerous and mostly not wildfires: off on the map by default.
+  layers: { earthquake: true, disaster: true, natural: true, thermal: false, weather: true },
   earthquake: { minMag: 0, depth: 'all', significantOnly: false },
   disaster: { levels: ['Red', 'Orange', 'Green', 'none'], types: ['EQ', 'TC', 'FL', 'VO', 'DR', 'WF', 'TS'] },
   natural: { types: Object.keys(NATURAL_TYPES) },
-  thermal: { minConfidence: 0, sensors: null }, // null = all sensors
+  thermal: { minConfidence: 2, sensors: null }, // high confidence only; null = all sensors
   weather: { severities: ['Extreme', 'Severe', 'Moderate', 'Minor', 'Unknown'] },
 };
 
@@ -53,12 +54,23 @@ export function earthquakeMatches(p, filters, now) {
  * GDACS events are ongoing, so an event matches the time window when it was
  * active at any point inside it (start ≤ now and end ≥ window start).
  */
+/**
+ * Latest time the source reports the event as active: its end (GDACS latest
+ * episode end, EONET closing date), else its last update, else its start.
+ */
+export function lastActivityMs(p) {
+  return parseUtc(p.eventEndUtc) ?? parseUtc(p.sourceUpdatedUtc) ?? parseUtc(p.eventStartUtc);
+}
+
+/**
+ * GDACS events match when they were active inside the selected window: an
+ * event whose latest episode ended before the window starts is not shown, even
+ * if the feed still lists it.
+ */
 export function disasterMatches(p, filters, now) {
   const start = parseUtc(p.eventStartUtc);
-  const end = parseUtc(p.eventEndUtc) ?? start;
-  const ws = windowStart(filters, now);
-  const active = p.status === 'active';
-  if (!active && (end == null || end < ws)) return false;
+  const last = lastActivityMs(p);
+  if (last == null || last < windowStart(filters, now)) return false;
   if (start != null && start > now + 3_600_000) return false;
   const level = p.severity?.sourceLevel || 'none';
   if (!filters.disaster.levels.includes(level)) return false;
@@ -66,10 +78,10 @@ export function disasterMatches(p, filters, now) {
   return true;
 }
 
-/** EONET open events match while open (or closed inside the window) and if their type is selected. */
+/** EONET events match when last reported inside the window and their type is selected. */
 export function naturalMatches(p, filters, now) {
-  const end = parseUtc(p.eventEndUtc);
-  if (end != null && end < windowStart(filters, now)) return false;
+  const last = lastActivityMs(p);
+  if (last == null || last < windowStart(filters, now)) return false;
   return filters.natural.types.includes(p.subtype);
 }
 

@@ -38,7 +38,7 @@ const state = {
   datasets: { earthquake: null, disaster: null, natural: null, weather: null },
   loadErrors: {},
   byId: new Map(),
-  filters: mergeFilters(load('filters', null)),
+  filters: mergeFilters(load('filters-v2', null)),
   selection: null,
   fires: null,
   firesIndex: null,
@@ -470,7 +470,7 @@ function closeDrawerOnMobile() {
 function onFiltersChange(filters) {
   const windowChanged = filters.window !== state.filters.window;
   state.filters = filters;
-  save('filters', { ...filters, window: filters.window });
+  save('filters-v2', { ...filters, window: filters.window });
   pushMapData();
   if (state.selection) refreshCard();
   if (windowChanged) writeUrl();

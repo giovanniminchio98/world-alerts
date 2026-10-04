@@ -1658,3 +1658,17 @@ html {
 .card-controls .save-offline {
   margin-top: 0;
 }
+
+/* Hazard legend: icon + area texture. */
+.hazard-legend img {
+  flex-shrink: 0;
+}
+.pattern-swatch {
+  width: 26px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  border: 1.5px dashed var(--c);
+  background-color: color-mix(in srgb, var(--c) 16%, transparent);
+  background-size: 12px 12px;
+}

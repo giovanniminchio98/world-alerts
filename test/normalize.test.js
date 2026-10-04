@@ -64,15 +64,42 @@ describe('GDACS normalisation', () => {
     expect(byType('VO').properties.severity.colorHint).toBe('green');
   });
   it('labels representative locations for area hazards without geometry', () => {
-    const fl = byType('FL').properties;
-    expect(fl.locationPrecision).toBe('representative');
-    expect(fl.disclaimer).toMatch(/Representative event location — affected area may be broader/);
+    const dr = byType('DR').properties;
+    expect(dr.locationPrecision).toBe('representative');
+    expect(dr.disclaimer).toMatch(/Representative event location — affected area may be broader/);
     expect(byType('TC').properties.locationPrecision).toBe('area');
     expect(byType('EQ').properties.locationPrecision).toBe('exact');
   });
   it('parses GDACS no-zone dates as UTC and maps country codes', () => {
     expect(byType('DR').properties.countryCodes).toEqual(['ET', 'KE', 'SO']);
     expect(byType('EQ').properties.eventStartUtc).toBe('2026-10-04T07:00:00Z');
+  });
+  it('attaches affected areas from the GDACS geometry endpoint and caches them', () => {
+    const fl = byType('FL').properties;
+    expect(fl.locationPrecision).toBe('area');
+    expect(fl.affectedGeometry.type).toBe('Polygon');
+    expect(out.files['cache/gdacs-geometry.json'].events['FL:900003:1']).toBeTruthy();
+    expect(out.notes).toMatch(/4 of 6 events have a published affected area/);
+  });
+  it('parses geometry responses, ignoring forecast cones', () => {
+    const square = (x) => ({ type: 'Polygon', coordinates: [[[x, 0], [x + 1, 0], [x + 1, 1], [x, 1], [x, 0]]] });
+    const parsed = gdacs.parseGeometryResponse({
+      type: 'FeatureCollection',
+      features: [
+        { geometry: square(0), properties: { Class: 'Poly_Orange' } },
+        { geometry: square(5), properties: { Class: 'Poly_Cones' } },
+        { geometry: { type: 'LineString', coordinates: [[0, 0], [2, 2]] }, properties: { Class: 'Line_Line_' } },
+        { geometry: { type: 'Point', coordinates: [0, 0] }, properties: { Class: 'Point_Centroid' } },
+      ],
+    });
+    expect(parsed.polygons).toHaveLength(1);
+    expect(parsed.lines).toHaveLength(1);
+  });
+  it('lists event references from both feed formats', () => {
+    const fromJson = gdacs.listEventRefs(sampleGdacs(NOW));
+    expect(fromJson.find((r) => r.type === 'FL')).toMatchObject({ key: 'FL:900003:1', level: 'Orange' });
+    const fromRss = gdacs.listEventRefs({ format: 'rss', data: sampleGdacsRss(NOW) });
+    expect(fromRss.map((r) => r.key)).toEqual(['FL:910001:2', 'EQ:910002:']);
   });
   it('parses the GeoRSS fallback', () => {
     const rss = gdacs.normalize({ format: 'rss', data: sampleGdacsRss(NOW) }, ctx);

@@ -77,8 +77,6 @@ export const NATURAL_TYPES = {
   waterColor: 'Water colour',
 };
 
-/** EONET category → hazard icon used on the map. */
-export const NATURAL_ICON = { wildfires: 'WF', volcanoes: 'VO', severeStorms: 'TC', floods: 'FL', drought: 'DR' };
 
 /** Hazards whose GDACS coordinate is a specific location rather than a broad area. */
 export const GDACS_POINT_HAZARDS = new Set(['EQ', 'VO']);

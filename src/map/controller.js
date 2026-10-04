@@ -26,9 +26,9 @@ const EMPTY = { type: 'FeatureCollection', features: [] };
 
 /** Layer ids grouped by data category, for visibility toggles. */
 const CATEGORY_LAYERS = {
-  weather: ['gim-nws-fill', 'gim-nws-line'],
-  disaster: ['gim-gdacs-area-fill', 'gim-gdacs-area-line', 'gim-gdacs-track', 'gim-gdacs-halo', 'gim-gdacs-icon'],
-  natural: ['gim-eonet-area-fill', 'gim-eonet-area-line', 'gim-eonet-track', 'gim-eonet-halo', 'gim-eonet-icon'],
+  weather: ['gim-nws-fill', 'gim-nws-pattern', 'gim-nws-line'],
+  disaster: ['gim-gdacs-area-fill', 'gim-gdacs-area-pattern', 'gim-gdacs-area-line', 'gim-gdacs-track', 'gim-gdacs-glow', 'gim-gdacs-halo', 'gim-gdacs-icon'],
+  natural: ['gim-eonet-area-fill', 'gim-eonet-area-pattern', 'gim-eonet-area-line', 'gim-eonet-track', 'gim-eonet-glow', 'gim-eonet-halo', 'gim-eonet-icon'],
   thermal: ['gim-fires-summary', 'gim-fires-summary-count', 'gim-fires-detail'],
   earthquake: ['gim-eq-cluster', 'gim-eq-cluster-count', 'gim-eq-minor', 'gim-eq-major', 'gim-eq-major-label', 'gim-eq-minor-label'],
 };
@@ -183,16 +183,36 @@ export class MapController {
 
     const colorExpr = ['match', ['get', 'color'], ...Object.entries(HINT_COLORS).flat(), HINT_COLORS.gray];
 
-    // Area layers (below labels).
+    // Area layers (below labels). Affected areas are tinted and textured by
+    // hazard type (flood "pixels", storm wind streaks, flames, …); NWS polygons
+    // keep their severity colour and get the hazard texture on top.
+    const pattern = ['concat', 'pat-', ['get', 'hazard']];
     m.addLayer({ id: 'gim-nws-fill', type: 'fill', source: 'gim-nws', paint: { 'fill-color': colorExpr, 'fill-opacity': ['match', ['get', 'color'], 'red', 0.26, 'orange', 0.2, 0.13] } }, below);
+    m.addLayer({ id: 'gim-nws-pattern', type: 'fill', source: 'gim-nws', filter: ['has', 'hazard'], paint: { 'fill-pattern': pattern, 'fill-opacity': 0.85 } }, below);
     m.addLayer({ id: 'gim-nws-line', type: 'line', source: 'gim-nws', paint: { 'line-color': colorExpr, 'line-width': 1.2, 'line-opacity': 0.85 } }, below);
-    m.addLayer({ id: 'gim-gdacs-area-fill', type: 'fill', source: 'gim-gdacs-areas', paint: { 'fill-color': colorExpr, 'fill-opacity': 0.12 } }, below);
-    m.addLayer({ id: 'gim-gdacs-area-line', type: 'line', source: 'gim-gdacs-areas', paint: { 'line-color': colorExpr, 'line-width': 1.4, 'line-dasharray': [3, 2] } }, below);
-    m.addLayer({ id: 'gim-gdacs-track', type: 'line', source: 'gim-gdacs-tracks', paint: { 'line-color': colorExpr, 'line-width': 2, 'line-dasharray': [1, 1.5] } }, below);
-    // NASA EONET has no severity levels, so its events use one neutral teal.
-    m.addLayer({ id: 'gim-eonet-area-fill', type: 'fill', source: 'gim-eonet-areas', paint: { 'fill-color': NATURAL_COLOR, 'fill-opacity': 0.12 } }, below);
-    m.addLayer({ id: 'gim-eonet-area-line', type: 'line', source: 'gim-eonet-areas', paint: { 'line-color': NATURAL_COLOR, 'line-width': 1.4, 'line-dasharray': [3, 2] } }, below);
-    m.addLayer({ id: 'gim-eonet-track', type: 'line', source: 'gim-eonet-tracks', paint: { 'line-color': NATURAL_COLOR, 'line-width': 2, 'line-dasharray': [1, 1.5] } }, below);
+    for (const src of ['gdacs', 'eonet']) {
+      m.addLayer({ id: `gim-${src}-area-fill`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-color': ['get', 'hcolor'], 'fill-opacity': 0.16 } }, below);
+      m.addLayer({ id: `gim-${src}-area-pattern`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-pattern': pattern, 'fill-opacity': 0.9 } }, below);
+      m.addLayer({ id: `gim-${src}-area-line`, type: 'line', source: `gim-${src}-areas`, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 1.6, 'line-dasharray': [3, 2] } }, below);
+      m.addLayer({ id: `gim-${src}-track`, type: 'line', source: `gim-${src}-tracks`, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 2.2, 'line-dasharray': [1, 1.5] } }, below);
+      // Events with only a point get a soft glow in the hazard colour — it marks
+      // "around here" without drawing a boundary the source never published.
+      m.addLayer(
+        {
+          id: `gim-${src}-glow`,
+          type: 'circle',
+          source: `gim-${src}-points`,
+          filter: ['!', ['get', 'hasArea']],
+          paint: {
+            'circle-color': ['get', 'hcolor'],
+            'circle-blur': 1,
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 16, 4, 30, 7, 60, 10, 110],
+            'circle-opacity': ['case', ['get', 'representative'], 0.55, 0.4],
+          },
+        },
+        below,
+      );
+    }
 
     // Selection radius.
     m.addLayer({ id: 'gim-selection-fill', type: 'fill', source: 'gim-selection', paint: { 'fill-color': '#3a7bd5', 'fill-opacity': 0.06 } });
@@ -278,53 +298,32 @@ export class MapController {
       m.addLayer({ id: 'gim-eq-minor-label', type: 'symbol', source: 'gim-eq-minor', minzoom: 7, filter: ['!', ['has', 'point_count']], layout: labelLayout, paint: labelPaint });
     }
 
-    // GDACS events: alert-level halo + hazard icon on top.
-    m.addLayer({
-      id: 'gim-gdacs-halo',
-      type: 'circle',
-      source: 'gim-gdacs-points',
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 13, 6, 18],
-        'circle-color': colorExpr,
-        'circle-opacity': ['case', ['get', 'representative'], 0.28, 0.5],
-        'circle-stroke-color': colorExpr,
-        'circle-stroke-width': 2,
-      },
-    });
-    m.addLayer({
-      id: 'gim-gdacs-icon',
-      type: 'symbol',
-      source: 'gim-gdacs-points',
-      layout: {
-        'icon-image': ['concat', 'gdacs-', ['get', 'hazard']],
-        'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.5, 6, 0.7],
-        'icon-allow-overlap': true,
-      },
-    });
-
-    // NASA EONET natural events: teal halo (GDACS halos use alert-level colours) + hazard icon.
-    m.addLayer({
-      id: 'gim-eonet-halo',
-      type: 'circle',
-      source: 'gim-eonet-points',
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 11, 6, 16],
-        'circle-color': NATURAL_COLOR,
-        'circle-opacity': ['case', ['get', 'representative'], 0.22, 0.4],
-        'circle-stroke-color': NATURAL_COLOR,
-        'circle-stroke-width': 2,
-      },
-    });
-    m.addLayer({
-      id: 'gim-eonet-icon',
-      type: 'symbol',
-      source: 'gim-eonet-points',
-      layout: {
-        'icon-image': ['concat', 'gdacs-', ['get', 'hazard']],
-        'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.42, 6, 0.6],
-        'icon-allow-overlap': true,
-      },
-    });
+    // GDACS and EONET events: hazard icon on top, ringed by the GDACS alert
+    // level as published (EONET publishes none, so its ring is neutral teal).
+    for (const src of ['gdacs', 'eonet']) {
+      m.addLayer({
+        id: `gim-${src}-halo`,
+        type: 'circle',
+        source: `gim-${src}-points`,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 12, 6, 17],
+          'circle-color': 'rgba(0,0,0,0)',
+          'circle-stroke-color': src === 'gdacs' ? colorExpr : NATURAL_COLOR,
+          'circle-stroke-width': src === 'gdacs' ? 3 : 2,
+          'circle-stroke-opacity': ['case', ['get', 'representative'], 0.6, 1],
+        },
+      });
+      m.addLayer({
+        id: `gim-${src}-icon`,
+        type: 'symbol',
+        source: `gim-${src}-points`,
+        layout: {
+          'icon-image': ['concat', 'hz-', ['get', 'hazard']],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.5, 6, 0.75],
+          'icon-allow-overlap': true,
+        },
+      });
+    }
   }
 
   setData(sourceId, fc) {

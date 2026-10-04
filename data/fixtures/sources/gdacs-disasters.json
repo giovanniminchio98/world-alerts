@@ -30,7 +30,7 @@
   "dataFiles": [
     "incidents/gdacs-disasters.json"
   ],
-  "notes": null,
+  "notes": "Event list from sample; 4 of 6 events have a published affected area.",
   "error": null,
   "consecutiveFailures": 0,
   "workflowRunUrl": null,

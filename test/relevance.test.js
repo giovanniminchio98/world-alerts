@@ -101,8 +101,9 @@ describe('location report scenarios', () => {
     const r = report({ lon: 91.83, lat: 22.36, countryCode: 'BD' });
     const fl = cat(r, 'disaster').items.find((i) => i.feature.properties.subtype === 'FL');
     expect(fl.relation).toBe('country');
+    // Dhaka lies inside the flood extent fetched from the GDACS geometry endpoint.
     const near = report({ lon: 90.41, lat: 23.81, countryCode: 'BD' });
-    expect(cat(near, 'disaster').items[0].relation).toBe('representative');
+    expect(cat(near, 'disaster').items[0].relation).toBe('inside-area');
   });
 
   it('respects the selected radius and filters', () => {
@@ -138,7 +139,7 @@ describe('location report scenarios', () => {
     expect(la.state).toBe('found');
     expect(la.items[0]).toMatchObject({ relation: 'nearby' });
     expect(la.items[0].feature.properties.subtype).toBe('wildfires');
-    const bologna = cat(report({ lon: 11.34, lat: 44.99, countryCode: 'IT' }), 'natural');
+    const bologna = cat(report({ lon: 11.34, lat: 44.99, countryCode: 'IT' }, { filters: mergeFilters({ window: '7d' }) }), 'natural');
     expect(bologna.items[0].relation).toBe('inside-area');
     const paris = cat(report({ lon: 2.35, lat: 48.85, countryCode: 'FR' }), 'natural');
     expect(paris.state).toBe('none');

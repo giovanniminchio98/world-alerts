@@ -218,7 +218,15 @@ export function sampleGdacs(now) {
     for (const p of e.polygons || []) features.push(f(p, gdacsProps(now, { ...e, cls: `Poly_${e.level}` })));
     for (const l of e.lines || []) features.push(f(l, gdacsProps(now, { ...e, cls: 'Line_Line_' })));
   }
-  return { format: 'geojson', data: { type: 'FeatureCollection', features } };
+  // Affected area for the Bangladesh flood, as the GDACS geometry endpoint would supply it.
+  const geometries = {
+    'FL:900003:1': {
+      polygons: [{ type: 'Polygon', coordinates: [[[89.5, 23.3], [91.0, 23.3], [91.0, 24.8], [89.5, 24.8], [89.5, 23.3]]] }],
+      lines: [],
+      fetchedUtc: new Date(now - HOUR).toISOString(),
+    },
+  };
+  return { format: 'geojson', endpoint: 'sample', data: { type: 'FeatureCollection', features }, geometries };
 }
 
 /** A small GDACS GeoRSS document for the fallback parser. */

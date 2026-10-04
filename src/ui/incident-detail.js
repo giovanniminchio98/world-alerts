@@ -1,7 +1,7 @@
 // Detail view for one incident or thermal detection (map popup + list/card expansion).
 import { html, raw, safeUrl } from '../lib/dom.js';
 import { fmtAgo, fmtCoords, fmtRelPos, fmtTime, countryName } from '../lib/format.js';
-import { earthquakeBandLabel, NATURAL_ICON } from '../shared/severity.js';
+import { earthquakeBandLabel } from '../shared/severity.js';
 import { iconDataUrl } from '../map/icons.js';
 import { colorFor } from '../lib/colors.js';
 
@@ -119,7 +119,7 @@ export function incidentDetail(feature, { now = Date.now(), origin = null, onChe
   const p = feature.properties;
   const el = document.createElement('article');
   el.className = `incident-detail cat-${p.category}`;
-  const iconType = p.category === 'disaster' ? p.subtype : p.category === 'natural' ? NATURAL_ICON[p.subtype] || 'default' : null;
+  const iconType = p.category === 'disaster' || p.category === 'natural' ? p.subtype : null;
   const icon = iconType ? html`<img class="hazard-icon" src="${iconDataUrl(iconType)}" alt="" width="28" height="28">` : '';
   const BODIES = { earthquake: earthquakeBody, disaster: disasterBody, natural: naturalBody, weather: weatherBody };
   const body = (BODIES[p.category] || weatherBody)(feature, now, origin);

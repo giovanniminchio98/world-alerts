@@ -1,29 +1,125 @@
 // GDACS — Global Disaster Alert and Coordination System.
-// Primary: GeoJSON event list (MAP). Fallback: the public GeoRSS feed.
+//
+// Event list: tries the documented GDACS JSON endpoints in turn (SEARCH,
+// EVENTS4APP, MAP) and falls back to the public GeoRSS feed. Affected areas
+// (flood extents, cyclone wind buffers, burnt areas, shake zones) come from
+// the GDACS geometry endpoint, fetched per event and cached in
+// cache/gdacs-geometry.json so each run only requests new episodes.
 
 import countries from 'i18n-iso-countries';
 import { makeIncident, sortIncidents } from '../../src/shared/schema.js';
 import { parseUtc, toIsoUtc } from '../../src/shared/time.js';
 import { geometryBbox, mergePolygons, round, simplifyGeometry } from '../../src/shared/geo.js';
 import { GDACS_POINT_HAZARDS, GDACS_TYPES, gdacsColorHint } from '../../src/shared/severity.js';
+import { mapLimit } from '../lib/http.js';
 
 export const key = 'gdacs-disasters';
-const JSON_URL = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP';
+const API = 'https://www.gdacs.org/gdacsapi/api';
 const RSS_URL = 'https://www.gdacs.org/xml/rss.xml';
+const GEOMETRY_CACHE = 'cache/gdacs-geometry.json';
+const GEOMETRY_TYPES = new Set(['FL', 'TC', 'WF', 'DR', 'EQ', 'VO']);
 
 /** Events whose end date is older than this are dropped (unless flagged current). */
 const MAX_AGE_DAYS = 14;
 
-export async function fetchRaw(ctx) {
-  try {
-    const json = await ctx.fetchJson(process.env.GDACS_JSON_URL || JSON_URL, { timeoutMs: 90_000 });
-    if (json?.type === 'FeatureCollection') return { format: 'geojson', data: json };
-    throw new Error('GDACS JSON response was not a FeatureCollection');
-  } catch (e) {
-    ctx.log(`  GDACS JSON failed (${e.message}); trying GeoRSS fallback`);
-    const xml = await ctx.fetchText(process.env.GDACS_RSS_URL || RSS_URL, { timeoutMs: 90_000 });
-    return { format: 'rss', data: xml };
+const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+/** JSON event-list endpoints to try, most complete first. */
+function listEndpoints(now) {
+  if (process.env.GDACS_JSON_URL) return [{ name: 'custom', urls: [process.env.GDACS_JSON_URL] }];
+  const search = (page) =>
+    `${API}/events/geteventlist/SEARCH?eventlist=EQ;TC;FL;VO;DR;WF&fromDate=${isoDay(now - 21 * 86_400_000)}&toDate=${isoDay(now + 86_400_000)}&alertlevel=Green;Orange;Red&pagesize=100&pagenumber=${page}`;
+  return [
+    { name: 'SEARCH', urls: [search(1), search(2), search(3)] },
+    { name: 'EVENTS4APP', urls: [`${API}/events/geteventlist/EVENTS4APP`] },
+    { name: 'MAP', urls: [`${API}/events/geteventlist/MAP`] },
+  ];
+}
+
+async function fetchEventList(ctx) {
+  for (const ep of listEndpoints(ctx.now)) {
+    try {
+      const features = [];
+      for (const url of ep.urls) {
+        const json = await ctx.fetchJson(url, { timeoutMs: 90_000, retries: 1 });
+        if (json?.type !== 'FeatureCollection' || !Array.isArray(json.features)) throw new Error('not a FeatureCollection');
+        features.push(...json.features);
+        if (json.features.length < 100) break; // last page
+      }
+      if (!features.length) throw new Error('no events');
+      ctx.log(`  GDACS event list from ${ep.name}: ${features.length} features`);
+      return { format: 'geojson', endpoint: ep.name, data: { type: 'FeatureCollection', features } };
+    } catch (e) {
+      ctx.log(`  GDACS ${ep.name} failed (${e.message})`);
+    }
   }
+  const xml = await ctx.fetchText(process.env.GDACS_RSS_URL || RSS_URL, { timeoutMs: 90_000 });
+  ctx.log('  GDACS event list from the GeoRSS fallback');
+  return { format: 'rss', endpoint: 'RSS', data: xml };
+}
+
+/** Events (type, id, episode, alert level, geometry URL) found in either list format. */
+export function listEventRefs(raw) {
+  const refs = new Map();
+  const add = (p) => {
+    const type = String(p.eventtype || '').toUpperCase();
+    const id = p.eventid ?? p.id;
+    if (!GEOMETRY_TYPES.has(type) || id == null) return;
+    const episode = p.episodeid ?? '';
+    const k = geometryKey(type, id, episode);
+    if (!refs.has(k)) refs.set(k, { key: k, type, id, episode, level: String(p.alertlevel || ''), url: typeof p.url === 'object' ? p.url?.geometry : null });
+  };
+  if (raw.format === 'geojson') for (const f of raw.data.features || []) add(f.properties || {});
+  else for (const item of String(raw.data).match(/<item[\s>][\s\S]*?<\/item>/gi) || []) {
+    add({ eventtype: tag(item, 'gdacs:eventtype'), eventid: tag(item, 'gdacs:eventid'), episodeid: tag(item, 'gdacs:episodeid'), alertlevel: tag(item, 'gdacs:alertlevel') });
+  }
+  return [...refs.values()];
+}
+
+export const geometryKey = (type, id, episode) => `${type}:${id}:${episode ?? ''}`;
+
+/** Polygons (minus forecast cones) and lines from a GDACS geometry response, simplified. */
+export function parseGeometryResponse(json) {
+  const polygons = [];
+  const lines = [];
+  for (const f of json?.features || []) {
+    const g = f?.geometry;
+    const cls = String(f?.properties?.Class || f?.properties?.class || '');
+    if (!g) continue;
+    if ((g.type === 'Polygon' || g.type === 'MultiPolygon') && !/cone/i.test(cls)) {
+      let s = simplifyGeometry(g, 0.02, 3);
+      if (s && JSON.stringify(s.coordinates).length > 200_000) s = simplifyGeometry(g, 0.06, 2);
+      if (s) polygons.push(s);
+    } else if (g.type === 'LineString' || g.type === 'MultiLineString') {
+      lines.push(g.type === 'LineString' ? simplifyGeometry(g, 0.02, 3) : g);
+    }
+  }
+  return { polygons, lines };
+}
+
+export async function fetchRaw(ctx) {
+  const raw = await fetchEventList(ctx);
+  // Affected-area geometry, newest episodes first, Red/Orange before Green; cached between runs.
+  const cache = (await ctx.readPrevious(GEOMETRY_CACHE))?.events || {};
+  const rank = { red: 0, orange: 1, green: 2 };
+  const wanted = listEventRefs(raw)
+    .filter((r) => !cache[r.key])
+    .sort((a, b) => (rank[a.level.toLowerCase()] ?? 3) - (rank[b.level.toLowerCase()] ?? 3));
+  const max = Number(process.env.GDACS_MAX_GEOMETRY_FETCHES) || 40;
+  let fetched = 0;
+  let failed = 0;
+  await mapLimit(wanted.slice(0, max), 3, async (r) => {
+    const url = r.url || `${API}/polygons/getgeometry?eventtype=${r.type}&eventid=${r.id}&episodeid=${r.episode}`;
+    try {
+      const json = await ctx.fetchJson(url, { timeoutMs: 60_000, retries: 1 });
+      cache[r.key] = { ...parseGeometryResponse(json), fetchedUtc: ctx.nowIso };
+      fetched++;
+    } catch {
+      failed++;
+    }
+  });
+  if (wanted.length) ctx.log(`  GDACS geometry: fetched ${fetched}, failed ${failed}, deferred ${Math.max(0, wanted.length - max)}`);
+  return { ...raw, geometries: cache };
 }
 
 const alpha2 = (code) => {
@@ -243,13 +339,43 @@ export function normalizeRss(xml, fetchedUtc, now) {
   return out;
 }
 
+/** Attach cached affected-area geometry to an incident that has none of its own. */
+function enrich(incident, geometries) {
+  const p = incident.properties;
+  const [, type, id] = p.id.split(':');
+  const geo = geometries?.[geometryKey(type, id, p.attributes.episodeId ?? '')];
+  if (!geo) return incident;
+  if (!p.affectedGeometry && geo.polygons?.length) {
+    p.affectedGeometry = mergePolygons(geo.polygons);
+    if (!GDACS_POINT_HAZARDS.has(type)) {
+      p.locationPrecision = 'area';
+      p.disclaimer = 'GDACS is an alert and coordination source; assessments can change as events evolve.';
+    }
+  }
+  if (!p.attributes.track && geo.lines?.length) {
+    p.attributes.track = { type: 'MultiLineString', coordinates: geo.lines.flatMap((l) => (l.type === 'LineString' ? [l.coordinates] : l.coordinates)) };
+  }
+  return incident;
+}
+
 export function normalize(raw, ctx) {
   const fetchedUtc = ctx.nowIso;
   let features;
   if (raw.format === 'geojson') features = normalizeGeoJson(raw.data, fetchedUtc, ctx.now);
   else if (raw.format === 'rss') features = normalizeRss(raw.data, fetchedUtc, ctx.now);
   else throw new Error('Unknown GDACS payload format');
-  features = sortIncidents(features.filter((f) => keepRecent(f, ctx.now)));
+  features = sortIncidents(features.filter((f) => keepRecent(f, ctx.now)).map((f) => enrich(f, raw.geometries)));
+
+  // Keep the geometry cache bounded to events still listed (or fetched in the last 30 days).
+  const listed = new Set(features.map((f) => {
+    const [, t, i] = f.properties.id.split(':');
+    return geometryKey(t, i, f.properties.attributes.episodeId ?? '');
+  }));
+  const cache = {};
+  for (const [k, v] of Object.entries(raw.geometries || {}).sort(([a], [b]) => (a < b ? -1 : 1))) {
+    if (listed.has(k) || ctx.now - (parseUtc(v.fetchedUtc) ?? 0) < 30 * 86_400_000) cache[k] = v;
+  }
+  const withArea = features.filter((f) => f.properties.affectedGeometry).length;
   const latestModified = features
     .map((f) => parseUtc(f.properties.sourceUpdatedUtc))
     .filter((v) => v != null)
@@ -259,7 +385,7 @@ export function normalize(raw, ctx) {
     minExpectedRecords: 0,
     sourceLatestDataTimeUtc: toIsoUtc(latestModified) ?? null,
     sourceLastEventTimeUtc: features[0]?.properties.eventStartUtc ?? null,
-    notes: raw.format === 'rss' ? 'Fetched from the GDACS GeoRSS fallback feed (no affected-area polygons).' : null,
+    notes: `Event list from ${raw.endpoint || raw.format}; ${withArea} of ${features.length} events have a published affected area.`,
     files: {
       [`incidents/${key}.json`]: {
         type: 'FeatureCollection',
@@ -270,6 +396,7 @@ export function normalize(raw, ctx) {
           'GDACS alert levels are model-based estimates of potential humanitarian impact and may change as assessments evolve.',
         features,
       },
+      [GEOMETRY_CACHE]: { events: cache },
     },
   };
 }

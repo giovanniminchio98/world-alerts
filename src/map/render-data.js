@@ -1,8 +1,7 @@
 // Convert normalised incidents (already filtered) into flat GeoJSON for map rendering.
-import { ICON_TYPES } from './icons.js';
+import { hazardColor, hazardOf, nwsHazard } from './hazards.js';
 import { fireColorKey } from '../lib/colors.js';
 import { summaryCellCount, thermalRowMatches } from '../lib/filters.js';
-import { NATURAL_ICON } from '../shared/severity.js';
 
 const fc = (features) => ({ type: 'FeatureCollection', features });
 
@@ -26,53 +25,48 @@ export function earthquakesToMap(features) {
   return { major: fc(major), minor: fc(minor) };
 }
 
-export function disastersToMap(features) {
+/**
+ * GDACS / EONET events → icon points, affected-area polygons and tracks, each
+ * carrying its hazard key and colour. `ring` is the icon ring colour hint (the
+ * GDACS alert level as published; EONET has none).
+ */
+function eventsToMap(features, ring) {
   const points = [];
   const areas = [];
   const tracks = [];
   for (const f of features) {
     const p = f.properties;
-    const color = p.severity.colorHint || 'gray';
+    const hazard = hazardOf(p.subtype);
+    const hcolor = hazardColor(hazard);
     points.push({
       type: 'Feature',
       geometry: f.geometry,
       properties: {
         fid: p.id,
-        hazard: ICON_TYPES.includes(p.subtype) ? p.subtype : 'default',
-        color,
+        hazard,
+        hcolor,
+        color: ring(p),
         representative: p.locationPrecision === 'representative',
+        hasArea: Boolean(p.affectedGeometry),
       },
     });
-    if (p.affectedGeometry) areas.push({ type: 'Feature', geometry: p.affectedGeometry, properties: { fid: p.id, color } });
-    if (p.attributes?.track) tracks.push({ type: 'Feature', geometry: p.attributes.track, properties: { fid: p.id, color } });
+    if (p.affectedGeometry) areas.push({ type: 'Feature', geometry: p.affectedGeometry, properties: { fid: p.id, hazard, hcolor } });
+    if (p.attributes?.track) tracks.push({ type: 'Feature', geometry: p.attributes.track, properties: { fid: p.id, hazard, hcolor } });
   }
   return { points: fc(points), areas: fc(areas), tracks: fc(tracks) };
 }
 
-export function naturalToMap(features) {
-  const points = [];
-  const areas = [];
-  const tracks = [];
-  for (const f of features) {
-    const p = f.properties;
-    points.push({
-      type: 'Feature',
-      geometry: f.geometry,
-      properties: { fid: p.id, hazard: NATURAL_ICON[p.subtype] || 'default', representative: p.locationPrecision === 'representative' },
-    });
-    if (p.affectedGeometry) areas.push({ type: 'Feature', geometry: p.affectedGeometry, properties: { fid: p.id } });
-    if (p.attributes?.track) tracks.push({ type: 'Feature', geometry: p.attributes.track, properties: { fid: p.id } });
-  }
-  return { points: fc(points), areas: fc(areas), tracks: fc(tracks) };
-}
+export const disastersToMap = (features) => eventsToMap(features, (p) => p.severity.colorHint || 'gray');
+export const naturalToMap = (features) => eventsToMap(features, () => 'natural');
 
 export function weatherToMap(features) {
   return fc(
-    features.map((f) => ({
-      type: 'Feature',
-      geometry: f.geometry,
-      properties: { fid: f.properties.id, color: f.properties.severity.colorHint || 'gray' },
-    })),
+    features.map((f) => {
+      const hazard = nwsHazard(f.properties.attributes?.event);
+      const props = { fid: f.properties.id, color: f.properties.severity.colorHint || 'gray' };
+      if (hazard) Object.assign(props, { hazard, hcolor: hazardColor(hazard) });
+      return { type: 'Feature', geometry: f.geometry, properties: props };
+    }),
   );
 }
 

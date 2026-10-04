@@ -34,10 +34,14 @@ describe('filters', () => {
     expect(earthquakeMatches(eq(5, 10, { depthKm: 10, significant: true }), f, NOW)).toBe(false);
     expect(earthquakeMatches(eq(5, 10, { depthKm: 100 }), f, NOW)).toBe(false);
   });
-  it('keeps ongoing GDACS events active and filters by published level/type', () => {
-    const ev = { status: 'active', eventStartUtc: ago(60 * 24 * 30), eventEndUtc: ago(60 * 24 * 10), subtype: 'DR', severity: { sourceLevel: 'Green' } };
+  it('shows GDACS events only if active inside the window, and filters by published level/type', () => {
+    const ev = { status: 'active', eventStartUtc: ago(60 * 24 * 30), eventEndUtc: ago(60 * 3), subtype: 'DR', severity: { sourceLevel: 'Green' } };
     expect(disasterMatches(ev, DEFAULT_FILTERS, NOW)).toBe(true);
-    expect(disasterMatches({ ...ev, status: 'past' }, DEFAULT_FILTERS, NOW)).toBe(false);
+    // A flood whose last episode ended 3 days ago is hidden in the 24 h window, even if flagged current…
+    const ended = { ...ev, subtype: 'FL', eventEndUtc: ago(60 * 24 * 3) };
+    expect(disasterMatches(ended, DEFAULT_FILTERS, NOW)).toBe(false);
+    // …but shown when the window covers it.
+    expect(disasterMatches(ended, mergeFilters({ window: '7d' }), NOW)).toBe(true);
     expect(disasterMatches(ev, mergeFilters({ disaster: { levels: ['Red'] } }), NOW)).toBe(false);
     expect(disasterMatches({ ...ev, severity: { sourceLevel: null } }, DEFAULT_FILTERS, NOW)).toBe(true); // "not supplied"
   });
@@ -56,9 +60,10 @@ describe('filters', () => {
     expect(maxAgeBucket(mergeFilters({ window: '1h' }))).toBe(0);
     expect(maxAgeBucket(mergeFilters({ window: '7d' }))).toBe(3);
     const counts = { '0|2|0': 3, '0|0|1': 4, '1|1|3': 5 };
-    expect(summaryCellCount(counts, mergeFilters({ window: '24h' }))).toBe(7);
+    expect(summaryCellCount(counts, mergeFilters({ window: '24h', thermal: { minConfidence: 0 } }))).toBe(7);
+    expect(summaryCellCount(counts, mergeFilters({ window: '24h' }))).toBe(3); // default: high confidence only
     expect(summaryCellCount(counts, mergeFilters({ window: '7d', thermal: { minConfidence: 1 } }))).toBe(8);
-    expect(summaryCellCount(counts, mergeFilters({ window: '7d', thermal: { sensors: [1] } }))).toBe(5);
+    expect(summaryCellCount(counts, mergeFilters({ window: '7d', thermal: { minConfidence: 0, sensors: [1] } }))).toBe(5);
   });
   it('defines high severity from source classifications only', () => {
     expect(isHighSeverity({ category: 'earthquake', severity: { numeric: 5 } })).toBe(true);

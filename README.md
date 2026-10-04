@@ -37,7 +37,7 @@ The site never says a place is “safe”. When nothing is found it says: *“No
 | Layer | Source | Coverage | Scheduled refresh (best effort) | Marked stale after |
 | --- | --- | --- | --- | --- |
 | Earthquakes | [USGS](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php) “all earthquakes, past 7 days” GeoJSON feed | Global | ≈ every 15 min | 45 min |
-| Major disasters | [GDACS](https://www.gdacs.org/) event list (GeoJSON), GeoRSS fallback | Global (major events only) | ≈ every 30 min | 90 min |
+| Major disasters | [GDACS](https://www.gdacs.org/) event list (JSON SEARCH → EVENTS4APP → MAP, GeoRSS fallback) + per-event affected-area geometry | Global (major events only) | ≈ every 30 min | 90 min |
 | Satellite thermal detections | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) VIIRS + MODIS, past 7 days | Global land | ≈ every 60 min | 180 min |
 | Natural events | [NASA EONET](https://eonet.gsfc.nasa.gov/docs/v3) open events (wildfires, storms, volcanoes, floods, …) | Global (curated) | ≈ every 60 min | 180 min |
 | Weather alerts | [U.S. National Weather Service](https://www.weather.gov/documentation/services-web-api) active alerts | **United States & territories only** | ≈ every 15 min | 90 min |
@@ -52,8 +52,9 @@ Map features:
 
 - MapLibre GL JS 2D map, OpenFreeMap vector basemap, automatic fallback to bundled country outlines if tiles cannot load.
 - Earthquakes sized and coloured by magnitude (blue < M3, yellow M3–4.9, orange M5–5.9, red M6+), small events clustered at low zoom, magnitudes labelled.
-- GDACS hazard icons, published alert level only (never an invented score), affected areas and cyclone tracks when GDACS publishes them, and “representative location” labelling otherwise.
-- FIRMS detections aggregated into a 1° grid at world/continental zoom and loaded as 10° tiles only for the area in view.
+- Major disasters and natural events drawn by **hazard type**: coloured icons (flood blue, storm purple, wildfire orange, volcano red, drought gold, earthquake brown), textured affected areas (flood “pixels”, wind streaks, flames, embers, cracks, zigzags) and a soft glow where only a representative point is known. The icon ring shows the GDACS alert level as published (never an invented score). US NWS warnings get the same hazard textures (e.g. wind streaks for tornado warnings).
+- Events are shown only if the source reports them active inside the selected time window (an event whose latest episode ended before the window is hidden).
+- FIRMS satellite heat spots are **off on the map by default** (they are numerous and mostly not wildfires); when switched on they default to high-confidence detections, aggregated into a 1° grid at low zoom and loaded as 10° tiles when zoomed in. Location cards still report nearby high-confidence heat spots. Named wildfires come from GDACS and NASA EONET.
 - NWS warning polygons / zone outlines with transparent fills.
 - Filters: time window (1 h / 24 h / 48 h / 7 days), magnitude, depth, significant-only, GDACS level and hazard type, FIRMS confidence and sensor, NWS severity.
 - **Location Status card** with radius (25–500 km, default 100 km), per-category results, distance and compass direction, source status, and coverage notes. Shareable via URL.

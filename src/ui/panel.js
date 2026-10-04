@@ -3,9 +3,10 @@
 import { html, raw, setHtml } from '../lib/dom.js';
 import { TIME_WINDOWS } from '../shared/time.js';
 import { DEPTH_RANGES } from '../lib/filters.js';
-import { GDACS_TYPES, NATURAL_ICON, NATURAL_TYPES, NWS_SEVERITIES } from '../shared/severity.js';
+import { GDACS_TYPES, NATURAL_TYPES, NWS_SEVERITIES } from '../shared/severity.js';
 import { HINT_COLORS, FIRE_COLORS } from '../lib/colors.js';
-import { iconDataUrl } from '../map/icons.js';
+import { iconDataUrl, patternDataUrl } from '../map/icons.js';
+import { HAZARDS, hazardOf } from '../map/hazards.js';
 import { statusBadge, statusSentence } from './status-ui.js';
 import { describeSourceStatus } from '../shared/status.js';
 import { getPrefs } from '../lib/prefs.js';
@@ -18,6 +19,14 @@ const LAYERS = [
   { category: 'thermal', sourceKey: 'firms-hotspots', title: 'Satellite thermal detections', sub: 'NASA FIRMS · not confirmed wildfires' },
   { category: 'weather', sourceKey: 'nws-alerts', title: 'Weather alerts', sub: 'NWS · United States only' },
 ];
+
+/** Legend rows: hazard icon + the texture used over its affected areas. */
+function hazardLegend(codes) {
+  const keys = [...new Set(codes.map(hazardOf))];
+  return html`<ul class="legend hazard-legend" aria-label="Hazard colours and textures">
+    ${keys.map((k) => html`<li><img src="${iconDataUrl(k)}" alt="" width="20" height="20"><span class="pattern-swatch" style="background-image:url(${patternDataUrl(k)});--c:${HAZARDS[k].color}" aria-hidden="true"></span>${HAZARDS[k].label}</li>`)}
+  </ul>`;
+}
 
 const checked = (v) => (v ? raw('checked') : '');
 const selected = (v) => (v ? raw('selected') : '');
@@ -143,14 +152,16 @@ export class Panel {
         <fieldset class="checks"><legend>Hazard type</legend>
           ${Object.entries(GDACS_TYPES).map(([k, t]) => html`<label class="check"><input type="checkbox" data-filter="gd-type" value="${k}" ${checked(f.disaster.types.includes(k))}><img src="${iconDataUrl(k)}" alt="" width="18" height="18"> ${t}</label>`)}
         </fieldset>
-        <p class="muted small">Dashed outlines show affected areas or tracks when GDACS publishes them. Faint halos mark representative locations — the affected area may be broader.</p>`;
+        ${hazardLegend(Object.keys(GDACS_TYPES))}
+        <p class="muted small">Icon colour and area texture show the hazard type; the ring colour is the GDACS alert level (green / orange / red). Textured areas are affected areas published by GDACS. A soft glow means only a representative location is known — the affected area may be broader.</p>`;
     }
     if (category === 'natural') {
       return html`
         <fieldset class="checks"><legend>Event type</legend>
-          ${Object.entries(NATURAL_TYPES).map(([k, t]) => html`<label class="check"><input type="checkbox" data-filter="eo-type" value="${k}" ${checked(f.natural.types.includes(k))}><img src="${iconDataUrl(NATURAL_ICON[k] || 'default')}" alt="" width="18" height="18"> ${t}</label>`)}
+          ${Object.entries(NATURAL_TYPES).map(([k, t]) => html`<label class="check"><input type="checkbox" data-filter="eo-type" value="${k}" ${checked(f.natural.types.includes(k))}><img src="${iconDataUrl(k)}" alt="" width="18" height="18"> ${t}</label>`)}
         </fieldset>
-        <p class="muted small">Teal markers. EONET curates open events from other agencies and gives no severity level. Storms show their latest reported position and path; dashed outlines are affected areas when published.</p>`;
+        ${hazardLegend(Object.keys(NATURAL_TYPES))}
+        <p class="muted small">Teal ring. EONET curates events from other agencies and gives no severity level. Storms show their latest position and their path; textured areas are affected areas when published, a soft glow marks a point location.</p>`;
     }
     if (category === 'thermal') {
       return html`

@@ -29,7 +29,7 @@ npm run dev            # http://localhost:5173 — purple "Sample data" banner m
 1. Toggle *Earthquakes* off/on — circles disappear/reappear; the location card still lists earthquakes (cards check all sources).
 2. Set *Minimum magnitude* to M 4.5+ — small events disappear from map, list and card; the card shows “Active filters: earthquakes M 4.5+”.
 3. Switch the time window between 1 h / 24 h / 48 h / 7 days — counts change consistently in the map, list and card.
-4. Zoom into the Amazon (≈ 10° S, 63° W) past zoom 5 — the 1° thermal summary circles are replaced by individual detections; change *Confidence* to “High only”.
+4. Satellite heat spots are off by default. Switch the layer on, then zoom into the Amazon (≈ 10° S, 63° W) past zoom 5 — the 1° thermal summary circles are replaced by individual detections; change *Confidence* to “High only”.
 
 ## 3b. Natural events, emergency numbers, offline
 

@@ -1,0 +1,116 @@
+# Refresh public data sources and publish them to GitHub Pages.
+#
+# GitHub Actions schedules are best-effort: runs can start late (sometimes by
+# a lot) or be skipped under load. The site therefore shows the actual fetch
+# and publish timestamps recorded by this workflow, never an assumed schedule.
+#
+# Every run checks which sources are *due* (see config/sources.json):
+#   USGS ≈ 15 min · NWS ≈ 15 min · GDACS ≈ 30 min · NASA FIRMS ≈ 60 min
+# The latest data is stored as a snapshot on the `data` branch so a failed
+# fetch can always fall back to the last valid files.
+name: Refresh data
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Refresh every enabled source, even if not due'
+        type: boolean
+        default: false
+      sources:
+        description: 'Comma-separated source keys to refresh (optional, e.g. usgs-earthquakes,nws-alerts)'
+        type: string
+        default: ''
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write # push the `data` snapshot branch
+    outputs:
+      refreshed: ${{ steps.refresh.outputs.refreshed }}
+      published: ${{ steps.publish.outputs.published }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Restore last published data from the data branch
+        run: |
+          mkdir -p data/generated
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            git fetch --depth=1 origin +refs/heads/data:refs/remotes/origin/data
+            git archive refs/remotes/origin/data | tar -x -C data/generated
+            echo "Restored $(find data/generated -type f | wc -l) files from the data branch."
+          else
+            echo "No data branch yet — starting fresh."
+          fi
+
+      - name: Fetch, normalise and validate due sources
+        id: refresh
+        env:
+          REFRESH_FORCE: ${{ inputs.force && 'true' || 'false' }}
+          REFRESH_SOURCES: ${{ inputs.sources }}
+          # Optional. Without it, FIRMS public 7-day text files are used.
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+          FIRMS_PRODUCTS: ${{ vars.FIRMS_PRODUCTS }}
+          FIRMS_MAX_DETECTIONS: ${{ vars.FIRMS_MAX_DETECTIONS }}
+          DISABLED_SOURCES: ${{ vars.DISABLED_SOURCES }}
+          NWS_USER_AGENT: ${{ vars.NWS_USER_AGENT }}
+          DATA_USER_AGENT: ${{ vars.DATA_USER_AGENT }}
+        run: node scripts/refresh.mjs --data-dir data/generated
+
+      - name: Publish data snapshot to the data branch
+        id: publish
+        if: steps.refresh.outputs.refreshed != '0'
+        env:
+          # "snapshot" (default) keeps a single rolling commit so generated data
+          # never bloats repository history; "history" keeps every snapshot.
+          DATA_BRANCH_MODE: ${{ vars.DATA_BRANCH_MODE || 'snapshot' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Stage data/generated as the root of a separate tree, using a temporary index.
+          export GIT_INDEX_FILE="$RUNNER_TEMP/data-index"
+          rm -f "$GIT_INDEX_FILE"
+          (cd data/generated && git --git-dir="$GITHUB_WORKSPACE/.git" --work-tree=. add -A .)
+          tree=$(git write-tree)
+          previous=$(git rev-parse -q --verify refs/remotes/origin/data || true)
+          if [ -n "$previous" ] && [ "$(git rev-parse "$previous^{tree}")" = "$tree" ]; then
+            echo "Data unchanged — nothing to publish."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          message="Data snapshot $(date -u +%Y-%m-%dT%H:%M:%SZ) (run ${GITHUB_RUN_ID})"
+          if [ "$DATA_BRANCH_MODE" = "history" ] && [ -n "$previous" ]; then
+            commit=$(git commit-tree "$tree" -p "$previous" -m "$message")
+          else
+            commit=$(git commit-tree "$tree" -m "$message")
+          fi
+          git push --force origin "$commit:refs/heads/data"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: refresh
+    if: needs.refresh.outputs.published == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml
+    secrets: inherit

@@ -1,0 +1,76 @@
+# Build the static site with the latest published data and deploy it to GitHub Pages.
+# Runs on pushes to main, manually, and after each data refresh (workflow_call).
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Get latest data from the data branch
+        run: |
+          mkdir -p data/generated
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            git fetch --depth=1 origin +refs/heads/data:refs/remotes/origin/data
+            git archive refs/remotes/origin/data | tar -x -C data/generated
+          fi
+
+      # First deployment only: no data branch exists yet, so fetch live data now
+      # (it is not committed; the scheduled refresh workflow creates the branch).
+      - name: Bootstrap live data
+        if: hashFiles('data/generated/manifest.json') == ''
+        env:
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+          FIRMS_PRODUCTS: ${{ vars.FIRMS_PRODUCTS }}
+          DISABLED_SOURCES: ${{ vars.DISABLED_SOURCES }}
+          NWS_USER_AGENT: ${{ vars.NWS_USER_AGENT }}
+        run: node scripts/refresh.mjs --force --data-dir data/generated
+
+      - name: Build site
+        env:
+          # Never publish the sample fixtures to production.
+          REQUIRE_LIVE_DATA: 'true'
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # Job-level so it also applies when this workflow is called by "Refresh data".
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

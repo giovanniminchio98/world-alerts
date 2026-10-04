@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sources & coverage — Global Incident Map</title>
+    <meta name="description" content="Every data source used by the Global Incident Map, its coverage, limitations, refresh schedule and current status." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <script>
+      try {
+        var p = JSON.parse(localStorage.getItem('gim:prefs') || '{}');
+        if (p.theme === 'light' || p.theme === 'dark') document.documentElement.dataset.theme = p.theme;
+      } catch (e) {}
+    </script>
+  </head>
+  <body class="page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Global Incident Map — back to the map">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-text"><span class="brand-name">Global Incident Map</span><span class="brand-tag">What is happening around this place right now?</span></span>
+      </a>
+      <nav class="top-actions" aria-label="Main">
+        <a class="nav-link page-nav" href="./">Map</a>
+        <a class="nav-link page-nav" href="./sources.html">Sources</a>
+        <a class="nav-link page-nav" href="./methodology.html">Methodology</a>
+        <a class="nav-link page-nav" href="./about.html">About</a>
+      </nav>
+    </header>
+    <main id="main" class="page-main">
+      <h1>Sources &amp; coverage</h1>
+      <p class="lede">Every incident on the map comes from one of the public sources below. Status and timestamps are read from the data this site last published — refresh schedules are best-effort, and data may be delayed.</p>
+      <div class="time-diagram" aria-label="Three different timestamps">
+        <div><strong>Source event time</strong>When the source says the event happened or was issued (e.g. earthquake origin time, alert issue time).</div>
+        <div><strong>Project fetch time</strong>When this project's GitHub Actions workflow last fetched the source successfully (“last fetched by this project”).</div>
+        <div><strong>Publish time</strong>When the static site containing that data was built and published to GitHub Pages (“last published update”).</div>
+      </div>
+      <p class="callout">Refreshes are scheduled at intervals, but actual update timing depends on source availability and GitHub Actions scheduling. Scheduled workflows can start later than their configured times, so the timestamps below show when this project actually fetched and published each source.</p>
+      <div id="sources-root"><p class="loading">Loading source status…</p></div>
+    </main>
+    <footer class="page-footer">
+      <p><strong>Disclaimer:</strong> This website aggregates third-party public data and may be delayed, incomplete, inaccurate, or unavailable. It is not an emergency warning system and must not be used as a substitute for official local authorities, emergency services, or safety instructions.</p>
+    </footer>
+    <script type="module" src="/src/pages/sources.js"></script>
+  </body>
+</html>

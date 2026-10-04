@@ -1,0 +1,29 @@
+# Tests and a sample-data build for pull requests.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main, data]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Build with sample data
+        run: npm run build
+      - name: Check fixtures are up to date
+        run: |
+          npm run fixtures
+          git diff --exit-code -- data/fixtures || (echo "Run 'npm run fixtures' and commit the result." && exit 1)

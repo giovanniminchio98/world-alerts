@@ -1,0 +1,47 @@
+{
+  "name": "global-incident-map",
+  "version": "0.1.0",
+  "description": "Global Incident Map — what is happening around this place right now? A static GitHub Pages site aggregating public incident data.",
+  "scripts": {
+    "prepare:geo": "node scripts/build-geo-assets.mjs",
+    "prepare:data": "node scripts/stage-data.mjs",
+    "predev": "npm run prepare:geo && npm run prepare:data",
+    "dev": "vite",
+    "prebuild": "npm run prepare:geo && npm run prepare:data",
+    "build": "vite build",
+    "preview": "vite preview",
+    "refresh": "node scripts/refresh.mjs",
+    "refresh:force": "node scripts/refresh.mjs --force",
+    "fixtures": "node scripts/build-fixtures.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/giovanniminchio98/world-alerts.git"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/giovanniminchio98/world-alerts/issues"
+  },
+  "homepage": "https://github.com/giovanniminchio98/world-alerts#readme",
+  "dependencies": {
+    "maplibre-gl": "^6.12.0",
+    "topojson-client": "^3.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "all-the-cities": "^3.1.0",
+    "i18n-iso-countries": "^7.14.0",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3",
+    "world-atlas": "^2.0.2"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.12"
+  }
+}

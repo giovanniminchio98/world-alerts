@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>About — Global Incident Map</title>
+    <meta name="description" content="Purpose, disclaimer and privacy statement for the Global Incident Map." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <script>
+      try {
+        var p = JSON.parse(localStorage.getItem('gim:prefs') || '{}');
+        if (p.theme === 'light' || p.theme === 'dark') document.documentElement.dataset.theme = p.theme;
+      } catch (e) {}
+    </script>
+  </head>
+  <body class="page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Global Incident Map — back to the map">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-text"><span class="brand-name">Global Incident Map</span><span class="brand-tag">What is happening around this place right now?</span></span>
+      </a>
+      <nav class="top-actions" aria-label="Main">
+        <a class="nav-link page-nav" href="./">Map</a>
+        <a class="nav-link page-nav" href="./sources.html">Sources</a>
+        <a class="nav-link page-nav" href="./methodology.html">Methodology</a>
+        <a class="nav-link page-nav" href="./about.html">About</a>
+      </nav>
+    </header>
+    <main id="main" class="page-main">
+      <h1>About</h1>
+      <p class="lede">Global Incident Map answers one question — “What is happening around this place right now?” — as honestly as public data allows.</p>
+
+      <h2>Purpose</h2>
+      <p>The site brings together recent earthquakes, major-disaster alerts, satellite thermal detections and U.S. weather alerts on one map, and lets you check what the connected sources report around any place. It aims to be transparent about what is monitored, when each source was last refreshed, and what is not covered.</p>
+      <p>It is a static website hosted on GitHub Pages. Data is refreshed by scheduled GitHub Actions workflows, so it is never real-time: it reflects the last published update, and data may be delayed.</p>
+
+      <h2>No affiliation</h2>
+      <p>This project is independent. It is not affiliated with, endorsed by, or operated by USGS, GDACS, the European Commission, the United Nations, NASA, NOAA / the National Weather Service, OpenStreetMap, OpenFreeMap or any other data or map provider. Their names are used only to attribute data.</p>
+
+      <h2 id="disclaimer">Emergency disclaimer</h2>
+      <p class="callout"><strong>This website aggregates third-party public data and may be delayed, incomplete, inaccurate, or unavailable. It is not an emergency warning system and must not be used as a substitute for official local authorities, emergency services, or safety instructions.</strong></p>
+      <p>In an emergency, contact local emergency services and follow instructions from official authorities. The absence of an incident on this map never means a place is safe.</p>
+
+      <h2 id="privacy">Privacy</h2>
+      <ul>
+        <li>No accounts, no sign-in, no advertising, no analytics and no tracking.</li>
+        <li>This project has no server or database, and never receives your location or searches.</li>
+        <li>“Use my location” is opt-in: your browser asks permission, and the coordinates are used only inside your browser to centre the map and build the location card.</li>
+        <li>Settings (units, time zone display, theme, filters) are stored only in your browser's local storage. Clearing site data removes them.</li>
+        <li>Clicked points are labelled offline using a bundled city list and country outlines — no request is made.</li>
+        <li><strong>Third parties:</strong> to draw the basemap your browser requests map tiles from <a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a>. When you submit a worldwide place search, the search text is sent to <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener noreferrer">OpenStreetMap Nominatim</a> (see the <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener noreferrer">OSMF privacy policy</a>). Suggestions while typing come from a built-in list and send nothing. These providers receive the normal technical information of any web request (such as your IP address). GitHub Pages hosts the site and may keep standard server logs.</li>
+      </ul>
+
+      <h2>Credits</h2>
+      <ul>
+        <li>Earthquake data: U.S. Geological Survey (USGS).</li>
+        <li>Disaster alerts: GDACS — Global Disaster Alert and Coordination System (European Commission JRC and UN OCHA).</li>
+        <li>Thermal detections: NASA FIRMS (LANCE).</li>
+        <li>Weather alerts: NOAA / U.S. National Weather Service.</li>
+        <li>Basemap: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors.</li>
+        <li>Country outlines: Natural Earth. City list: GeoNames (CC BY 4.0).</li>
+        <li>Map rendering: MapLibre GL JS.</li>
+      </ul>
+
+      <h2>Contact &amp; source code</h2>
+      <p>The code, data pipeline and issue tracker are on GitHub: <a href="https://github.com/giovanniminchio98/world-alerts">github.com/giovanniminchio98/world-alerts</a>. Please report data problems or suggest new official sources there.</p>
+    </main>
+    <footer class="page-footer">
+      <p><strong>Disclaimer:</strong> This website aggregates third-party public data and may be delayed, incomplete, inaccurate, or unavailable. It is not an emergency warning system and must not be used as a substitute for official local authorities, emergency services, or safety instructions.</p>
+    </footer>
+    <script type="module" src="/src/pages/page.js"></script>
+  </body>
+</html>

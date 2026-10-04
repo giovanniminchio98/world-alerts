@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Methodology — Global Incident Map</title>
+    <meta name="description" content="How the Global Incident Map collects, normalises, matches and labels incident data, and why no matching incident does not mean safe." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <script>
+      try {
+        var p = JSON.parse(localStorage.getItem('gim:prefs') || '{}');
+        if (p.theme === 'light' || p.theme === 'dark') document.documentElement.dataset.theme = p.theme;
+      } catch (e) {}
+    </script>
+  </head>
+  <body class="page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Global Incident Map — back to the map">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-text"><span class="brand-name">Global Incident Map</span><span class="brand-tag">What is happening around this place right now?</span></span>
+      </a>
+      <nav class="top-actions" aria-label="Main">
+        <a class="nav-link page-nav" href="./">Map</a>
+        <a class="nav-link page-nav" href="./sources.html">Sources</a>
+        <a class="nav-link page-nav" href="./methodology.html">Methodology</a>
+        <a class="nav-link page-nav" href="./about.html">About</a>
+      </nav>
+    </header>
+    <main id="main" class="page-main">
+      <h1>Methodology</h1>
+      <p class="lede">How data gets onto this map, how a place is matched against it, and what the results can and cannot tell you.</p>
+
+      <h2 id="incident">What counts as an incident</h2>
+      <p>An “incident” is a record published by one of the connected sources:</p>
+      <ul>
+        <li><strong>Earthquakes</strong> — every event in the USGS “all earthquakes, past 7 days” feed (including small events and some non-earthquake seismic events such as quarry blasts, which are labelled).</li>
+        <li><strong>Major disasters</strong> — events in the GDACS alert list (earthquakes, tropical cyclones, floods, volcanoes, droughts, wildfires) with the GDACS alert level as published.</li>
+        <li><strong>Weather alerts</strong> — active U.S. National Weather Service watches, warnings, advisories and statements (United States and territories only).</li>
+        <li><strong>Satellite thermal detections</strong> — NASA FIRMS active-fire / thermal hotspot detections. These are counted separately and are <em>not</em> called incidents, because a detection can be a wildfire, agricultural burning, an industrial heat source, a gas flare or another hot surface.</li>
+      </ul>
+      <p>The project never invents a severity score. Colours map only values the source supplies: earthquake magnitude, the GDACS alert level (Green / Orange / Red) and NWS severity (Minor → Extreme). Severity is always also shown as text, size or an icon, not by colour alone.</p>
+      <p><strong>“High severity”</strong> in the location summary means: earthquake magnitude 5.0 or above, a GDACS Orange or Red alert, or an NWS alert with severity Severe or Extreme.</p>
+
+      <h2 id="collection">How data is collected and normalised</h2>
+      <ol>
+        <li>A GitHub Actions workflow runs on a schedule (approximately every 15 minutes) and decides which sources are due: USGS ≈ every 15 min, NWS ≈ 15 min, GDACS ≈ 30 min, FIRMS ≈ 60 min.</li>
+        <li>Each due source is fetched with timeouts, retries and an identifying User-Agent. Keys (for example an optional NASA FIRMS MAP_KEY) exist only as GitHub Actions secrets and are never sent to browsers.</li>
+        <li>Responses are converted to one common incident schema (title, category, severity, geometry, event time, source-update time, fetch time, countries, attributes, caveats, source link) and validated.</li>
+        <li><strong>If a fetch or validation fails, the previous valid data is kept</strong> and only the failed attempt is recorded. An error never replaces a known valid feed with an empty list.</li>
+        <li>Static JSON / GeoJSON files and a manifest of source statuses are published with the site on GitHub Pages. Your browser downloads these files; there is no server or database.</li>
+      </ol>
+      <p>Satellite thermal detections are too numerous for one file, so they are published as 10° × 10° tiles plus a 1° summary grid. The map shows the grid at world and continental zoom and loads individual detections only for the area you are viewing or have selected.</p>
+
+      <h2 id="times">Event time, fetch time and publish time</h2>
+      <div class="time-diagram">
+        <div><strong>Source event time</strong>When the event happened or the alert was issued, as stated by the source. Sources may publish minutes to hours after this.</div>
+        <div><strong>Last fetched by this project</strong>When the refresh workflow last successfully downloaded the source.</div>
+        <div><strong>Last published update</strong>When the static data files were generated and published to the website.</div>
+      </div>
+      <p>All times are stored in UTC and shown in your local time zone by default (switch to UTC under <em>Display</em> in the layers panel).</p>
+
+      <h2 id="scheduling">GitHub Actions scheduling delays</h2>
+      <p>Data refreshes are scheduled through GitHub Actions. Scheduled workflows are not guaranteed to start at the configured minute; they can run late — sometimes much later — especially when GitHub Actions is under heavy load, and occasionally a scheduled run is skipped. That is why this site shows actual timestamps from the published metadata instead of assuming a fixed schedule, and never claims to be real-time.</p>
+
+      <h2 id="matching">How location-radius matching works</h2>
+      <ul>
+        <li><strong>Point incidents</strong> (earthquakes, thermal detections, GDACS earthquakes and volcanoes): distance from the selected point is computed with the Haversine great-circle formula (Earth radius 6,371 km). Events within the selected radius (25–500 km, default 100 km) and time window are listed with their distance and compass direction. Distance is a spatial aid only — it is not proof that an event affects a place.</li>
+        <li><strong>Area alerts</strong> (NWS polygons and zones, GDACS affected areas): the location is matched when it lies inside the published geometry. GDACS areas whose boundary is within the radius are listed as “boundary about X km away (approximate)”.</li>
+        <li><strong>Representative locations</strong>: many GDACS floods, droughts and cyclones are published with a single representative coordinate. These are labelled “Representative event location — affected area may be broader” and are never presented as precise city pins.</li>
+        <li><strong>Country-level matches</strong>: when GDACS lists the location's country as affected, the event is shown as a country-level match with no fake distance.</li>
+        <li>For clicked points, the country is estimated offline from Natural Earth outlines (approximate near borders and coasts).</li>
+      </ul>
+
+      <h2 id="not-safe">Why “no matching incident” does not mean “safe”</h2>
+      <p class="callout">An empty result means only: <em>No matching incidents were detected by the connected sources for this area and selected time window.</em> It does not confirm that no disruption exists.</p>
+      <p>Sources cover only some hazard types, have detection thresholds, publish with delays, can revise or remove events, and may be temporarily unavailable. Many hazards — local flooding, crime, conflict, industrial accidents, power or Internet outages, transport disruption, health threats — are not covered at all. This site therefore never describes a place as “safe”, “normal” or “without danger”.</p>
+
+      <h2 id="stale">How stale-data labels work</h2>
+      <ul>
+        <li><strong>Updated</strong> — the latest successful fetch is within the source's expected interval plus a grace period (USGS 45 min, GDACS 90 min, FIRMS 180 min, NWS 90 min).</li>
+        <li><strong>Stale</strong> — no successful fetch within that threshold (for example because scheduled runs were delayed). Data is still shown, with its age.</li>
+        <li><strong>Refresh failed</strong> — the latest attempt failed and there is no recent valid data. The last valid data, if any, is still shown with its timestamp.</li>
+        <li><strong>Not connected / coverage unavailable</strong> — the source is not implemented, or does not cover the selected location (e.g. NWS outside the United States).</li>
+      </ul>
+      <p>Status is recalculated in your browser using the current time, so a page left open will show data ageing into “stale” if no new update is published. The page also checks for newly published data every 10 minutes.</p>
+
+      <h2 id="limited-layers">Why blackouts and Internet layers have limited coverage</h2>
+      <p>There is no single free, standardised, reliable global real-time feed of electricity outages: outage information is spread across thousands of utilities, grid operators and municipal dashboards, each with its own format and terms. Power outages are therefore designed as a regional provider plugin system that will only show data where an official structured feed is connected — and otherwise says “No electricity-outage data source is currently connected for this location.”</p>
+      <p>Internet-disruption data (for example Cloudflare Radar) requires an API token that must not be exposed in browser code, has licence and redistribution conditions, and is usually country-, region- or network-level rather than city-specific. It is not connected by default. Airport/airspace status and public-health notices are likewise planned but not connected.</p>
+
+      <h2 id="use">Data-use limitations</h2>
+      <p>Each source's attribution and licence notes are on the <a href="./sources.html">sources page</a>. Data is provided as published by the sources, may be revised, and may contain errors introduced by the source or by this project's processing.</p>
+      <p class="callout">This website aggregates third-party public data and may be delayed, incomplete, inaccurate, or unavailable. It is not an emergency warning system and must not be used as a substitute for official local authorities, emergency services, or safety instructions.</p>
+    </main>
+    <footer class="page-footer">
+      <p><strong>Disclaimer:</strong> This website aggregates third-party public data and may be delayed, incomplete, inaccurate, or unavailable. It is not an emergency warning system and must not be used as a substitute for official local authorities, emergency services, or safety instructions.</p>
+    </footer>
+    <script type="module" src="/src/pages/page.js"></script>
+  </body>
+</html>

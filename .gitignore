@@ -1,0 +1,9 @@
+node_modules/
+dist/
+public/data/
+public/geo/
+data/generated/
+test-results/
+playwright-report/
+.DS_Store
+*.log

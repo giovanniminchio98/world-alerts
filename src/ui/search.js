@@ -47,8 +47,16 @@ export function initSearch({ form, input, list, status, onChoose }) {
     }
   };
 
+  // Close the on-screen keyboard and undo the page pan some mobile browsers
+  // leave behind, so the layout returns to normal after searching.
+  const settle = () => {
+    input.blur();
+    requestAnimationFrame(() => window.scrollTo(0, 0));
+  };
+
   const choose = (place) => {
     close();
+    settle();
     input.value = place.name;
     status.textContent = `Selected ${place.name}${place.country ? `, ${place.country}` : ''}.`;
     onChoose(place);
@@ -110,6 +118,9 @@ export function initSearch({ form, input, list, status, onChoose }) {
     if (li.dataset.ww) worldwide();
     else choose(options[Number(li.dataset.i)]);
   });
-  input.addEventListener('blur', () => setTimeout(close, 150));
+  input.addEventListener('blur', () => {
+    setTimeout(close, 150);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
+  });
   return { close };
 }

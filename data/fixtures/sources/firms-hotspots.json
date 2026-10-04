@@ -5,7 +5,7 @@
   "name": "NASA FIRMS — Fire Information for Resource Management System",
   "shortName": "NASA FIRMS thermal detections",
   "category": "thermal",
-  "categoryLabel": "Satellite thermal detections",
+  "categoryLabel": "Satellite heat detections",
   "enabled": true,
   "implemented": true,
   "scope": "global",

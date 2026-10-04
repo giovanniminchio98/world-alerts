@@ -9,6 +9,7 @@ import { iconDataUrl } from '../map/icons.js';
 import { statusBadge, statusSentence } from './status-ui.js';
 import { describeSourceStatus } from '../shared/status.js';
 import { getPrefs } from '../lib/prefs.js';
+import { categoryIcon } from './category-style.js';
 
 const LAYERS = [
   { category: 'earthquake', sourceKey: 'usgs-earthquakes', title: 'Earthquakes', sub: 'USGS · global' },
@@ -92,12 +93,12 @@ export class Panel {
     const status = describeSourceStatus(meta, now).status;
     const on = this.filters.layers[l.category];
     return html`
-      <section class="layer" data-category="${l.category}">
+      <section class="layer" data-category="${l.category}" data-cat="${l.category}">
         <div class="layer-head">
           <label class="switch">
             <input type="checkbox" data-layer="${l.category}" ${checked(on)} aria-describedby="status-${l.category}">
             <span class="switch-track" aria-hidden="true"></span>
-            <span class="layer-title">${l.title}<span class="muted small block">${l.sub}</span></span>
+            <span class="layer-title"><span class="layer-name">${categoryIcon(l.category)}${l.title}</span><span class="muted small block">${l.sub}</span></span>
           </label>
           <span class="layer-status" data-status="${l.category}">${statusBadge(status)}</span>
         </div>

@@ -7,16 +7,10 @@ import { RADIUS_OPTIONS } from '../lib/url-state.js';
 import { severityBadge, incidentDetail, thermalDetail } from './incident-detail.js';
 import { statusBadge } from './status-ui.js';
 import { DISCLAIMER } from './disclaimer.js';
+import { categoryIcon } from './category-style.js';
 
 const MAX_ITEMS = 8;
 
-const STATE_ICON = {
-  found: '●',
-  none: '○',
-  'coverage-unavailable': '—',
-  'source-unavailable': '!',
-  'not-connected': '—',
-};
 
 function relationText(item) {
   const p = item.feature.properties;
@@ -82,11 +76,11 @@ function categoryHtml(cat, catIndex, now) {
   const open = startsOpen(cat);
   const label = cat.category === 'thermal' ? 'nearest detections' : count === 1 ? 'event' : `${count} events`;
   return html`
-    <li class="cat-row state-${cat.state}">
+    <li class="cat-row state-${cat.state}" data-cat="${cat.category}">
       <div class="cat-head">
-        <span class="cat-icon" aria-hidden="true">${STATE_ICON[cat.state] || '○'}</span>
+        <span class="cat-icon">${categoryIcon(cat.category)}</span>
         <div class="cat-text">
-          <h4 class="cat-label">${cat.label}</h4>
+          <h4 class="cat-label">${cat.label}${count ? html` <span class="cat-count">${count}</span>` : ''}</h4>
           <p class="cat-headline">${cat.headline}</p>
           ${cat.note ? html`<p class="muted small">${cat.note}</p>` : ''}
           ${cat.freshness ? html`<p class="cat-fresh">${cat.freshness}</p>` : ''}
@@ -111,9 +105,9 @@ function categoryHtml(cat, catIndex, now) {
 function notConnectedHtml(cats) {
   if (!cats.length) return '';
   return html`
-    <li class="cat-row state-not-connected">
+    <li class="cat-row state-not-connected" data-cat="other">
       <div class="cat-head">
-        <span class="cat-icon" aria-hidden="true">—</span>
+        <span class="cat-icon">${categoryIcon('other')}</span>
         <div class="cat-text">
           <h4 class="cat-label">Not covered yet</h4>
           <p class="cat-headline">${cats.map((c) => c.label).join(' · ')}</p>

@@ -13,6 +13,12 @@
         var p = JSON.parse(localStorage.getItem('gim:prefs') || '{}');
         if (p.theme === 'light' || p.theme === 'dark') document.documentElement.dataset.theme = p.theme;
       } catch (e) {}
+      // iOS Safari zooms into focused fields and leaves the page zoomed; maximum-scale
+      // stops that there while iOS still allows pinch-zoom. Not applied elsewhere,
+      // so other browsers keep full zoom control.
+      if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+        document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover');
+      }
     </script>
   </head>
   <body class="app">

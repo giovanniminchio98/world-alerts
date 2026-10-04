@@ -9,10 +9,10 @@ test('loads the map shell with disclaimer, demo banner and source freshness', as
   await page.goto('./');
   await expect(page.locator('#demo-banner')).toBeVisible();
   await expect(page.locator('#notice')).toContainText('It is not an emergency warning system');
-  await expect(page.locator('#status-strip')).toContainText('4 of 4 sources updated');
+  await expect(page.locator('#status-strip')).toContainText('5 of 5 sources updated');
   await page.click('[data-open-status]');
   await expect(page.locator('#status-dialog')).toBeVisible();
-  await expect(page.locator('#status-dialog .status-rows li')).toHaveCount(4);
+  await expect(page.locator('#status-dialog .status-rows li')).toHaveCount(5);
   await expect(page.locator('#status-dialog')).toContainText('Last published update');
   await page.click('#status-dialog [data-close]');
   await expect(page.locator('#status-dialog')).toBeHidden();
@@ -63,23 +63,22 @@ test('clicking the map selects a location', async ({ page, isMobile }) => {
   await expect(page.locator('#location-panel .summary-box')).toBeVisible();
 });
 
-test('layer filters and incident list', async ({ page, isMobile }) => {
+test('layer toggles and filters', async ({ page, isMobile }) => {
   await page.goto('./');
   if (isMobile) await page.click('#btn-layers');
-  await page.click('#tabbtn-list');
-  const list = page.locator('#incident-list');
-  await expect(list).toContainText('mapped incident');
-  const before = await list.locator('li').count();
-  await page.click('#tabbtn-layers');
-  await page.locator('[data-layer="earthquake"]').uncheck({ force: true });
-  await page.click('#tabbtn-list');
-  await expect(list).toContainText('Hidden layers: earthquake');
-  expect(await list.locator('li').count()).toBeLessThan(before);
+  await expect(page.locator('#panel-title')).toHaveText('Layers & filters');
+  const eq = page.locator('[data-layer="earthquake"]');
+  await expect(eq).toBeChecked();
+  await eq.dispatchEvent('click');
+  await expect(eq).not.toBeChecked();
+  await page.goto('./');
+  if (isMobile) await page.click('#btn-layers');
+  await expect(page.locator('[data-layer="earthquake"]')).not.toBeChecked(); // remembered in this browser
 });
 
 test('sources page lists every source with status and timestamps', async ({ page }) => {
   await page.goto('./sources.html');
-  await expect(page.locator('.source-card')).toHaveCount(9); // 8 sources + the publication summary box
+  await expect(page.locator('.source-card')).toHaveCount(10); // 9 sources + the publication summary box
   await expect(page.locator('#usgs-earthquakes')).toContainText('Last successful fetch');
   await expect(page.locator('#power-outages')).toContainText('Not connected');
 });
@@ -118,4 +117,42 @@ test('the map keeps its height after the disclaimer is dismissed', async ({ page
   const viewport = page.viewportSize();
   expect(map.height).toBeGreaterThan(viewport.height * 0.45);
   expect(strip.y + strip.height).toBeGreaterThan(viewport.height - 5); // strip stays at the bottom
+});
+
+test('emergency numbers are shown for the selected country', async ({ page }) => {
+  await page.goto('./?lat=13.75&lon=100.5&place=Bangkok&cc=TH');
+  const em = page.locator('#location-panel .emergency');
+  await expect(em).toContainText('Emergency numbers · Thailand');
+  await expect(em.locator('a[href="tel:191"]')).toContainText('191');
+  await expect(em).toContainText('confirm locally');
+});
+
+test('natural events (NASA EONET) appear in the card', async ({ page }) => {
+  await page.goto('./?lat=34.05&lon=-118.24&place=Los%20Angeles&cc=US');
+  const row = page.locator('#location-panel .cat-row[data-cat="natural"]');
+  await expect(row).toContainText('Natural events');
+  await expect(row).toContainText('relevant event');
+});
+
+test('works offline after a place is saved', async ({ page, context, isMobile }) => {
+  test.skip(isMobile, 'covered on desktop');
+  await page.goto('./');
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload(); // now controlled by the service worker
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.goto('./?lat=29.76&lon=-95.37&place=Houston&cc=US');
+  await expect(page.locator('#location-panel .summary-box')).toBeVisible();
+  await page.click('[data-action="save"]');
+  await expect(page.locator('[data-action="save"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#saved-places')).toContainText('Houston');
+  await page.waitForLoadState('networkidle'); // let in-flight requests settle, as a real user would
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('#offline-banner')).toContainText("You're offline");
+  await page.locator('#saved-places .saved-open').first().click();
+  const card = page.locator('#location-panel');
+  await expect(card).toContainText('Flood Warning');
+  await expect(card.locator('.emergency a[href="tel:911"]')).toBeVisible();
+  await context.setOffline(false);
 });

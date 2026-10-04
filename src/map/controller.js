@@ -17,6 +17,7 @@ export const BASEMAPS = {
   dark: 'https://tiles.openfreemap.org/styles/dark',
 };
 const FONT = ['Noto Sans Regular'];
+export const NATURAL_COLOR = '#0f8a7e';
 const STYLE_TIMEOUT_MS = 10_000;
 
 export const WORLD_VIEW = { center: [10, 20], zoom: 1.4 };
@@ -27,12 +28,13 @@ const EMPTY = { type: 'FeatureCollection', features: [] };
 const CATEGORY_LAYERS = {
   weather: ['gim-nws-fill', 'gim-nws-line'],
   disaster: ['gim-gdacs-area-fill', 'gim-gdacs-area-line', 'gim-gdacs-track', 'gim-gdacs-halo', 'gim-gdacs-icon'],
+  natural: ['gim-eonet-area-fill', 'gim-eonet-area-line', 'gim-eonet-track', 'gim-eonet-halo', 'gim-eonet-icon'],
   thermal: ['gim-fires-summary', 'gim-fires-summary-count', 'gim-fires-detail'],
   earthquake: ['gim-eq-cluster', 'gim-eq-cluster-count', 'gim-eq-minor', 'gim-eq-major', 'gim-eq-major-label', 'gim-eq-minor-label'],
 };
 
 /** Clickable layers in priority order (first match wins). */
-const INTERACTIVE = ['gim-gdacs-icon', 'gim-eq-major', 'gim-eq-minor', 'gim-eq-cluster', 'gim-fires-detail', 'gim-fires-summary'];
+const INTERACTIVE = ['gim-gdacs-icon', 'gim-eonet-icon', 'gim-eq-major', 'gim-eq-minor', 'gim-eq-cluster', 'gim-fires-detail', 'gim-fires-summary'];
 
 function circlePolygon(lon, lat, radiusKm, steps = 96) {
   const coords = [];
@@ -54,7 +56,7 @@ export class MapController {
     this.container = container;
     this.opts = opts;
     this.data = {};
-    this.visibility = { earthquake: true, disaster: true, thermal: true, weather: true };
+    this.visibility = { earthquake: true, disaster: true, natural: true, thermal: true, weather: true };
     this.fallback = false;
     this.hasGlyphs = true;
     this.theme = opts.theme;
@@ -170,6 +172,9 @@ export class MapController {
     this.addSource('gim-gdacs-areas');
     this.addSource('gim-gdacs-tracks');
     this.addSource('gim-gdacs-points');
+    this.addSource('gim-eonet-points');
+    this.addSource('gim-eonet-areas');
+    this.addSource('gim-eonet-tracks');
     this.addSource('gim-fires-summary');
     this.addSource('gim-fires-detail');
     this.addSource('gim-eq-minor', { cluster: true, clusterMaxZoom: 6, clusterRadius: 38 });
@@ -184,6 +189,10 @@ export class MapController {
     m.addLayer({ id: 'gim-gdacs-area-fill', type: 'fill', source: 'gim-gdacs-areas', paint: { 'fill-color': colorExpr, 'fill-opacity': 0.12 } }, below);
     m.addLayer({ id: 'gim-gdacs-area-line', type: 'line', source: 'gim-gdacs-areas', paint: { 'line-color': colorExpr, 'line-width': 1.4, 'line-dasharray': [3, 2] } }, below);
     m.addLayer({ id: 'gim-gdacs-track', type: 'line', source: 'gim-gdacs-tracks', paint: { 'line-color': colorExpr, 'line-width': 2, 'line-dasharray': [1, 1.5] } }, below);
+    // NASA EONET has no severity levels, so its events use one neutral teal.
+    m.addLayer({ id: 'gim-eonet-area-fill', type: 'fill', source: 'gim-eonet-areas', paint: { 'fill-color': NATURAL_COLOR, 'fill-opacity': 0.12 } }, below);
+    m.addLayer({ id: 'gim-eonet-area-line', type: 'line', source: 'gim-eonet-areas', paint: { 'line-color': NATURAL_COLOR, 'line-width': 1.4, 'line-dasharray': [3, 2] } }, below);
+    m.addLayer({ id: 'gim-eonet-track', type: 'line', source: 'gim-eonet-tracks', paint: { 'line-color': NATURAL_COLOR, 'line-width': 2, 'line-dasharray': [1, 1.5] } }, below);
 
     // Selection radius.
     m.addLayer({ id: 'gim-selection-fill', type: 'fill', source: 'gim-selection', paint: { 'fill-color': '#3a7bd5', 'fill-opacity': 0.06 } });
@@ -292,6 +301,30 @@ export class MapController {
         'icon-allow-overlap': true,
       },
     });
+
+    // NASA EONET natural events: teal halo (GDACS halos use alert-level colours) + hazard icon.
+    m.addLayer({
+      id: 'gim-eonet-halo',
+      type: 'circle',
+      source: 'gim-eonet-points',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 11, 6, 16],
+        'circle-color': NATURAL_COLOR,
+        'circle-opacity': ['case', ['get', 'representative'], 0.22, 0.4],
+        'circle-stroke-color': NATURAL_COLOR,
+        'circle-stroke-width': 2,
+      },
+    });
+    m.addLayer({
+      id: 'gim-eonet-icon',
+      type: 'symbol',
+      source: 'gim-eonet-points',
+      layout: {
+        'icon-image': ['concat', 'gdacs-', ['get', 'hazard']],
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.42, 6, 0.6],
+        'icon-allow-overlap': true,
+      },
+    });
   }
 
   setData(sourceId, fc) {
@@ -361,6 +394,51 @@ export class MapController {
   fitRadius(lon, lat, radiusKm) {
     const zoom = Math.max(2, Math.min(11, Math.log2((EARTH_RADIUS_KM * 2 * Math.PI) / (radiusKm * 4.2)) - 0.2));
     this.flyTo(lon, lat, zoom);
+  }
+
+  /**
+   * Download basemap tiles around a place so it can be drawn offline (the
+   * service worker caches them). Bounded to `maxTiles` across zoom levels.
+   */
+  async prefetchArea(lon, lat, radiusKm, { maxTiles = 350, maxZoom = 12 } = {}) {
+    if (this.fallback || !this.map) return 0;
+    const templates = [];
+    for (const id of Object.keys(this.map.getStyle()?.sources || {})) {
+      const src = this.map.getSource(id);
+      if (src?.type === 'vector' && Array.isArray(src.tiles)) templates.push(...src.tiles);
+    }
+    if (!templates.length) return 0;
+    const dLat = (radiusKm / EARTH_RADIUS_KM) * (180 / Math.PI);
+    const dLon = dLat / Math.max(0.05, Math.cos((lat * Math.PI) / 180));
+    const tileXY = (lo, la, z) => {
+      const n = 2 ** z;
+      const r = (Math.max(-85, Math.min(85, la)) * Math.PI) / 180;
+      return [Math.floor(((lo + 180) / 360) * n), Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n)];
+    };
+    const urls = [];
+    for (let z = 2; z <= maxZoom; z++) {
+      const [x0, y0] = tileXY(lon - dLon, lat + dLat, z);
+      const [x1, y1] = tileXY(lon + dLon, lat - dLat, z);
+      const level = [];
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (const t of templates) level.push(t.replace('{z}', z).replace('{x}', ((x % 2 ** z) + 2 ** z) % 2 ** z).replace('{y}', y));
+      if (urls.length + level.length > maxTiles) break;
+      urls.push(...level);
+    }
+    let done = 0;
+    const queue = [...urls];
+    await Promise.all(
+      Array.from({ length: 6 }, async () => {
+        while (queue.length) {
+          const u = queue.shift();
+          try {
+            if ((await fetch(u)).ok) done++;
+          } catch {
+            /* offline or blocked — skip */
+          }
+        }
+      }),
+    );
+    return done;
   }
 
   /** Keep the bottom sheet from covering the map centre (mobile). */

@@ -8,6 +8,7 @@ import { severityBadge, incidentDetail, thermalDetail } from './incident-detail.
 import { statusBadge } from './status-ui.js';
 import { DISCLAIMER } from './disclaimer.js';
 import { categoryIcon } from './category-style.js';
+import { emergencyRows, telHref } from '../lib/emergency.js';
 
 const MAX_ITEMS = 8;
 
@@ -101,6 +102,26 @@ function categoryHtml(cat, catIndex, now) {
     </li>`;
 }
 
+/** Emergency numbers for the selected country (tap to call). */
+function emergencyHtml(ctx, countryLabel) {
+  const data = ctx.emergency;
+  if (!data) return '';
+  const entry = ctx.selection.countryCode ? data.countries?.[ctx.selection.countryCode] : null;
+  const rows = emergencyRows(entry);
+  return html`
+    <section class="emergency" aria-labelledby="emergency-title">
+      <h3 id="emergency-title" class="emergency-title"><span aria-hidden="true">☎</span> Emergency numbers${countryLabel ? html` · ${countryLabel}` : ''}</h3>
+      ${rows.length
+        ? html`<ul class="emergency-list">
+            ${rows.map(
+              (r) => html`<li><span class="em-label">${r.label}</span><a class="em-number" href="${telHref(r.number)}">${r.number}</a>${r.note ? html`<span class="em-note">${r.note}</span>` : ''}</li>`,
+            )}
+          </ul>`
+        : html`<p class="small">No emergency number is listed for this location. Check local official sources.</p>`}
+      <p class="em-caveat">From Wikipedia's list of emergency numbers (community-compiled, CC BY-SA). Numbers can change — confirm locally. On many mobile networks 112 also reaches emergency services.</p>
+    </section>`;
+}
+
 /** Categories with no connected source are listed together in one line. */
 function notConnectedHtml(cats) {
   if (!cats.length) return '';
@@ -172,6 +193,9 @@ export function renderLocationCard(container, ctx) {
           ${RADIUS_OPTIONS.map((r) => html`<option value="${r}" ${r === selection.radiusKm ? raw('selected') : ''}>${fmtDist(r)}</option>`)}
         </select>
         <span class="muted small">Time window: ${ctx.windowLabel}</span>
+        <button type="button" class="btn btn-small save-offline" data-action="save" aria-pressed="${String(Boolean(ctx.saved))}">
+          ${ctx.saved ? '★ Saved for offline' : '☆ Save for offline'}
+        </button>
       </div>
       <p class="checked-at small">
         Checked against locally published data at
@@ -182,6 +206,7 @@ export function renderLocationCard(container, ctx) {
       <div class="summary-box" role="status" aria-live="polite">
         ${report.summaryLines.map((l) => html`<p>${l}</p>`)}
       </div>
+      ${emergencyHtml(ctx, selection.countryCode ? country : null)}
       ${ctx.filtersNote ? html`<p class="filters-note small">Active filters: ${ctx.filtersNote}</p>` : ''}
       <h3 class="section-title">By category</h3>
       <ul class="cat-list">
@@ -203,6 +228,7 @@ export function renderLocationCard(container, ctx) {
   container.querySelector('[data-action="close"]').addEventListener('click', ctx.onClose);
   container.querySelector('[data-action="share"]').addEventListener('click', ctx.onShare);
   container.querySelector('[data-action="zoom"]').addEventListener('click', ctx.onZoom);
+  container.querySelector('[data-action="save"]').addEventListener('click', ctx.onToggleSave);
 
   container.querySelectorAll('.cat-expand').forEach((btn) => {
     btn.addEventListener('click', () => {

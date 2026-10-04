@@ -7,6 +7,11 @@
     <meta name="description" content="What is happening around this place right now? A map of recent earthquakes, major-disaster alerts, satellite thermal detections and US weather alerts from public sources, with transparent timestamps and coverage limits." />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#16324f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Incident Map" />
     <script>
       // Apply the stored theme before first paint to avoid a flash.
       try {
@@ -48,6 +53,8 @@
       </nav>
     </header>
 
+    <div id="offline-banner" class="banner banner-offline" role="status" hidden></div>
+
     <div id="demo-banner" class="banner banner-demo" role="note" hidden>
       <strong>Sample data.</strong> You are viewing demonstration fixtures generated locally — these are <strong>not real incidents</strong>.
     </div>
@@ -58,20 +65,17 @@
     </div>
 
     <main class="layout">
-      <aside id="panel" class="panel" aria-label="Layers, filters and incident list" tabindex="-1">
+      <aside id="panel" class="panel" aria-labelledby="panel-title" tabindex="-1">
         <div class="panel-top">
-          <div role="tablist" aria-label="Panel views" class="tabs">
-            <button type="button" role="tab" id="tabbtn-layers" data-tab="layers" aria-controls="tab-layers" aria-selected="true">Layers &amp; filters</button>
-            <button type="button" role="tab" id="tabbtn-list" data-tab="list" aria-controls="tab-list" aria-selected="false" tabindex="-1">Incident list</button>
-          </div>
+          <h2 id="panel-title" class="panel-title">Layers &amp; filters</h2>
           <button type="button" id="panel-close" class="icon-btn only-mobile" aria-label="Close layers panel">✕</button>
         </div>
-        <div id="tab-layers" role="tabpanel" aria-labelledby="tabbtn-layers" class="tab-body"><p class="loading">Loading published data…</p></div>
-        <div id="tab-list" role="tabpanel" aria-labelledby="tabbtn-list" class="tab-body" hidden><div id="incident-list"></div></div>
+        <section id="saved-places" class="saved-places" aria-label="Saved places" hidden></section>
+        <div id="tab-layers" class="tab-body"><p class="loading">Loading published data…</p></div>
       </aside>
 
       <section class="map-wrap" aria-label="Map">
-        <div id="map" class="map" role="region" aria-label="Interactive incident map. Click or tap anywhere to check the status around that point. The incident list tab offers a text alternative."></div>
+        <div id="map" class="map" role="region" aria-label="Interactive incident map. Click or tap anywhere to check the status around that point."></div>
         <div class="map-tools">
           <button type="button" id="btn-reset" class="tool-btn" aria-label="Reset map to world view" title="Reset to world view">🌐</button>
           <button type="button" id="btn-centre" class="tool-btn" aria-label="Check status at the centre of the map" title="Check the map centre">⊕</button>
@@ -79,7 +83,7 @@
         <p id="basemap-note" class="map-note" hidden>Basemap tiles could not be loaded; showing simplified country outlines.</p>
         <div id="map-fallback" class="map-fallback" hidden>
           <h2>The interactive map could not be loaded</h2>
-          <p>Your browser may not support WebGL, or map resources were blocked. You can still search for a place to see its location status, and browse the incident list.</p>
+          <p>Your browser may not support WebGL, or map resources were blocked. You can still search for a place to see its location status.</p>
         </div>
       </section>
 

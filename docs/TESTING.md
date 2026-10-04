@@ -30,7 +30,12 @@ npm run dev            # http://localhost:5173 — purple "Sample data" banner m
 2. Set *Minimum magnitude* to M 4.5+ — small events disappear from map, list and card; the card shows “Active filters: earthquakes M 4.5+”.
 3. Switch the time window between 1 h / 24 h / 48 h / 7 days — counts change consistently in the map, list and card.
 4. Zoom into the Amazon (≈ 10° S, 63° W) past zoom 5 — the 1° thermal summary circles are replaced by individual detections; change *Confidence* to “High only”.
-5. Open the *Incident list* tab — a keyboard-navigable text list; selecting an entry flies to it and opens its popup.
+
+## 3b. Natural events, emergency numbers, offline
+
+1. `/?lat=34.05&lon=-118.24&place=Los%20Angeles&cc=US` — the teal *Natural events* row lists the sample wildfire; the card shows *Emergency numbers · United States: 911* as a tap-to-call link.
+2. `/?lat=13.75&lon=100.5&place=Bangkok&cc=TH` — police 191, ambulance 1669, fire 199.
+3. Production build only (`npm run build && npm run preview`): open the site, reload once, pick a city and tap **☆ Save for offline**. It appears under *Saved places* in the layers panel. In DevTools → Network choose *Offline* and reload: the offline banner appears, the saved place opens with its card and emergency numbers, and timestamps still show when the data was published.
 
 ## 4. Mobile layout
 

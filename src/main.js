@@ -5,10 +5,14 @@ import { applyTheme, effectiveTheme, getPrefs, onPrefsChange, setPref } from './
 import { load, save } from './lib/storage.js';
 import { loadDataFile, loadManifest, loadPublishInfo, incidentPath, sourceVersion } from './lib/data.js';
 import { FiresStore } from './lib/fires.js';
-import { DEFAULT_FILTERS, disasterMatches, earthquakeMatches, filterFeatures, mergeFilters, weatherMatches } from './lib/filters.js';
+import { DEFAULT_FILTERS, disasterMatches, earthquakeMatches, filterFeatures, mergeFilters, naturalMatches, weatherMatches } from './lib/filters.js';
 import { buildLocationReport } from './lib/relevance.js';
 import { readUrlState, writeUrlState, buildUrl } from './lib/url-state.js';
 import { countryAt } from './lib/countries.js';
+import { loadEmergencyNumbers } from './lib/emergency.js';
+import { registerServiceWorker, watchConnectivity } from './lib/pwa.js';
+import { addSaved, isSaved, removeSaved } from './lib/saved-places.js';
+import { renderSavedPlaces } from './ui/saved-places.js';
 import { loadCities, nearestCity } from './lib/geocode.js';
 import { fmtDist, fmtTime, countryName } from './lib/format.js';
 import { radiusBbox } from './shared/geo.js';
@@ -17,14 +21,13 @@ import { decodeRow } from './shared/firms-codec.js';
 import { Panel, describeActiveFilters } from './ui/panel.js';
 import { renderStatusStrip } from './ui/status-strip.js';
 import { renderLocationCard } from './ui/location-card.js';
-import { renderIncidentList } from './ui/incident-list.js';
 import { incidentDetail, thermalDetail } from './ui/incident-detail.js';
 import { initSearch } from './ui/search.js';
 import { initChrome, toast } from './ui/chrome.js';
-import { earthquakesToMap, disastersToMap, weatherToMap, fireSummaryToMap, fireDetailToMap } from './map/render-data.js';
+import { earthquakesToMap, disastersToMap, naturalToMap, weatherToMap, fireSummaryToMap, fireDetailToMap } from './map/render-data.js';
 
-const SOURCE_FOR = { earthquake: 'usgs-earthquakes', disaster: 'gdacs-disasters', weather: 'nws-alerts' };
-const MATCHERS = { earthquake: earthquakeMatches, disaster: disasterMatches, weather: weatherMatches };
+const SOURCE_FOR = { earthquake: 'usgs-earthquakes', disaster: 'gdacs-disasters', natural: 'eonet-events', weather: 'nws-alerts' };
+const MATCHERS = { earthquake: earthquakeMatches, disaster: disasterMatches, natural: naturalMatches, weather: weatherMatches };
 const DETAIL_ZOOM = 5;
 const MANIFEST_POLL_MS = 10 * 60_000;
 
@@ -32,7 +35,7 @@ const url = readUrlState();
 const state = {
   manifest: null,
   publish: null,
-  datasets: { earthquake: null, disaster: null, weather: null },
+  datasets: { earthquake: null, disaster: null, natural: null, weather: null },
   loadErrors: {},
   byId: new Map(),
   filters: mergeFilters(load('filters', null)),
@@ -93,36 +96,6 @@ function renderStrip() {
   renderStatusStrip($('#status-strip'), { manifest: state.manifest, publish: state.publish, now: Date.now() });
 }
 
-function renderList() {
-  const cats = Object.keys(SOURCE_FOR).filter((c) => state.filters.layers[c]);
-  const features = cats.flatMap((c) => filtered(c));
-  const hidden = Object.keys(state.filters.layers).filter((c) => !state.filters.layers[c]);
-  renderIncidentList($('#incident-list'), {
-    features,
-    hasThermal: Boolean(state.fires),
-    hiddenCategories: hidden,
-    onSelect: (f) => {
-      const [lon, lat] = f.geometry.type === 'Point' ? f.geometry.coordinates : centroidOf(f.geometry);
-      if (state.map) {
-        state.map.flyTo(lon, lat, 6);
-        state.map.popup([lon, lat], detailFor(f, [lon, lat]));
-      } else {
-        selectLocation({ lon, lat, name: f.properties.title, source: 'list' });
-      }
-      closeDrawerOnMobile();
-    },
-  });
-}
-
-function centroidOf(geometry) {
-  const pts = [];
-  const visit = (c) => (typeof c[0] === 'number' ? pts.push(c) : c.forEach(visit));
-  visit(geometry.coordinates);
-  const lon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-  const lat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-  return [lon, lat];
-}
-
 function detailFor(feature, lngLat) {
   return incidentDetail(feature, {
     now: Date.now(),
@@ -145,6 +118,10 @@ function pushMapData() {
   m.setData('gim-gdacs-points', gd.points);
   m.setData('gim-gdacs-areas', gd.areas);
   m.setData('gim-gdacs-tracks', gd.tracks);
+  const ne = naturalToMap(filtered('natural'));
+  m.setData('gim-eonet-points', ne.points);
+  m.setData('gim-eonet-areas', ne.areas);
+  m.setData('gim-eonet-tracks', ne.tracks);
   m.setData('gim-nws', weatherToMap(filtered('weather')));
   for (const cat of Object.keys(state.filters.layers)) m.setVisibility(cat, state.filters.layers[cat]);
   updateFires();
@@ -269,6 +246,7 @@ async function selectLocation(input, { fly = true } = {}) {
   else if (state.map && isMobile()) state.map.centerOn(sel.lon, sel.lat);
   await describePlace(sel);
   const thermal = await thermalNear(sel);
+  state.emergency = await emergencyData();
   if (token !== selectToken) return;
   state.selection = sel;
   renderCard(thermal);
@@ -281,6 +259,14 @@ async function refreshCard() {
   if (!state.selection) return;
   const thermal = await thermalNear(state.selection);
   renderCard(thermal);
+}
+
+async function emergencyData() {
+  try {
+    return await loadEmergencyNumbers();
+  } catch {
+    return null;
+  }
 }
 
 function renderCard(thermal) {
@@ -300,6 +286,7 @@ function renderCard(thermal) {
     report,
     selection: sel,
     manifest: state.manifest,
+    emergency: state.emergency,
     now,
     windowLabel: TIME_WINDOWS[state.filters.window]?.label || state.filters.window,
     filtersNote: describeActiveFilters(state.filters, DEFAULT_FILTERS),
@@ -313,6 +300,47 @@ function renderCard(thermal) {
     onClose: clearSelection,
     onShare: share,
     onZoom: () => state.map?.fitRadius(sel.lon, sel.lat, sel.radiusKm),
+    saved: isSaved(sel),
+    onToggleSave: () => toggleSaved(sel, thermal),
+  });
+}
+
+/** Save / unsave a place for offline use: remember it and pre-download its map area. */
+async function toggleSaved(sel, thermal) {
+  if (isSaved(sel)) {
+    removeSaved(sel);
+    toast(`${sel.name} removed from saved places.`);
+  } else {
+    addSaved(sel);
+    toast(`Saving ${sel.name} for offline use…`);
+    // On a first visit the offline cache may still be installing: wait briefly for it.
+    if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
+      await Promise.race([navigator.serviceWorker.ready, new Promise((r) => setTimeout(r, 5000))]);
+    }
+    // Data files and fire tiles for this area were just loaded, so the service
+    // worker already holds them; fetch the basemap tiles around the place too.
+    const tiles = (await state.map?.prefetchArea(sel.lon, sel.lat, Math.max(sel.radiusKm, 50))) || 0;
+    toast(
+      'serviceWorker' in navigator && navigator.serviceWorker.controller
+        ? `${sel.name} saved — available offline with its emergency numbers${tiles ? ` and ${tiles} map tiles` : ''}.`
+        : `${sel.name} saved on this device. Reload the page once while online to make it available offline.`,
+    );
+  }
+  renderSaved();
+  renderCard(thermal);
+}
+
+function renderSaved() {
+  renderSavedPlaces($('#saved-places'), {
+    onOpen: (p) => {
+      closeDrawerOnMobile();
+      selectLocation({ ...p, source: 'saved' });
+    },
+    onRemove: (p) => {
+      removeSaved(p);
+      renderSaved();
+      if (state.selection) refreshCard();
+    },
   });
 }
 
@@ -395,7 +423,6 @@ function showMapFallback(reason) {
   console.warn('Map unavailable:', reason);
   $('#map-fallback').hidden = false;
   $('#map').hidden = true;
-  showTab('list');
 }
 
 async function initMap() {
@@ -433,16 +460,6 @@ async function initMap() {
 
 // --- Panels / chrome ----------------------------------------------------------
 
-function showTab(name) {
-  for (const t of document.querySelectorAll('[role="tab"]')) {
-    const on = t.dataset.tab === name;
-    t.setAttribute('aria-selected', String(on));
-    t.tabIndex = on ? 0 : -1;
-    $(`#${t.getAttribute('aria-controls')}`).hidden = !on;
-  }
-  if (name === 'list') renderList();
-}
-
 function closeDrawerOnMobile() {
   if (isMobile()) {
     document.body.classList.remove('panel-open');
@@ -455,7 +472,6 @@ function onFiltersChange(filters) {
   state.filters = filters;
   save('filters', { ...filters, window: filters.window });
   pushMapData();
-  if (!$('#tab-list').hidden) renderList();
   if (state.selection) refreshCard();
   if (windowChanged) writeUrl();
 }
@@ -482,16 +498,6 @@ function bindChrome() {
     layersBtn.setAttribute('aria-expanded', 'false');
     layersBtn.focus();
   });
-  for (const t of document.querySelectorAll('[role="tab"]')) {
-    t.addEventListener('click', () => showTab(t.dataset.tab));
-    t.addEventListener('keydown', (e) => {
-      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-      const tabs = [...document.querySelectorAll('[role="tab"]')];
-      const next = tabs[(tabs.indexOf(t) + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
-      showTab(next.dataset.tab);
-      next.focus();
-    });
-  }
   $('#sheet-toggle').addEventListener('click', () => {
     const expanded = document.body.classList.toggle('sheet-expanded');
     $('#sheet-toggle').setAttribute('aria-expanded', String(expanded));
@@ -515,8 +521,7 @@ function bindChrome() {
     }
     renderStrip();
     state.panel?.updateStatus(state.manifest?.sources || []);
-    if (!$('#tab-list').hidden) renderList();
-    if (state.selection) refreshCard();
+      if (state.selection) refreshCard();
   });
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
     if (getPrefs().theme === 'system') state.map?.setTheme(effectiveTheme());
@@ -530,8 +535,7 @@ async function pollManifest() {
       await loadAllData();
       state.panel?.updateStatus(state.manifest.sources);
       pushMapData();
-      if (!$('#tab-list').hidden) renderList();
-      if (state.selection) refreshCard();
+          if (state.selection) refreshCard();
       toast('Newly published data was loaded.');
     }
   } catch {
@@ -542,7 +546,12 @@ async function pollManifest() {
 
 // --- Boot -------------------------------------------------------------------
 
+registerServiceWorker();
 bindChrome();
+renderSaved();
+const updateConnectivity = watchConnectivity($('#offline-banner'), () =>
+  `You're offline — showing data saved on this device${state.manifest?.generatedAtUtc ? ` (last published update ${fmtTime(state.manifest.generatedAtUtc)})` : ''}. It will not update until you reconnect.`,
+);
 const mapReady = initMap();
 try {
   await loadAllData();
@@ -552,6 +561,7 @@ try {
   renderStatusStrip($('#status-strip'), { manifest: null, error: e.message });
 }
 if (state.manifest?.generatedAtUtc) renderStrip();
+updateConnectivity();
 state.panel = new Panel($('#tab-layers'), {
   filters: state.filters,
   sources: state.manifest.sources,

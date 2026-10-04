@@ -3,12 +3,14 @@
 
 import { parseUtc, windowMinutes } from '../shared/time.js';
 import { AGE_BUCKETS } from '../shared/firms-codec.js';
+import { NATURAL_TYPES } from '../shared/severity.js';
 
 export const DEFAULT_FILTERS = {
   window: '24h',
-  layers: { earthquake: true, disaster: true, thermal: true, weather: true },
+  layers: { earthquake: true, disaster: true, natural: true, thermal: true, weather: true },
   earthquake: { minMag: 0, depth: 'all', significantOnly: false },
   disaster: { levels: ['Red', 'Orange', 'Green', 'none'], types: ['EQ', 'TC', 'FL', 'VO', 'DR', 'WF', 'TS'] },
+  natural: { types: Object.keys(NATURAL_TYPES) },
   thermal: { minConfidence: 0, sensors: null }, // null = all sensors
   weather: { severities: ['Extreme', 'Severe', 'Moderate', 'Minor', 'Unknown'] },
 };
@@ -25,7 +27,7 @@ export function mergeFilters(partial) {
   const f = structuredClone(DEFAULT_FILTERS);
   if (!partial || typeof partial !== 'object') return f;
   if (typeof partial.window === 'string') f.window = partial.window;
-  for (const k of ['layers', 'earthquake', 'disaster', 'thermal', 'weather']) {
+  for (const k of ['layers', 'earthquake', 'disaster', 'natural', 'thermal', 'weather']) {
     if (partial[k] && typeof partial[k] === 'object') Object.assign(f[k], partial[k]);
   }
   return f;
@@ -62,6 +64,13 @@ export function disasterMatches(p, filters, now) {
   if (!filters.disaster.levels.includes(level)) return false;
   if (!filters.disaster.types.includes(p.subtype)) return false;
   return true;
+}
+
+/** EONET open events match while open (or closed inside the window) and if their type is selected. */
+export function naturalMatches(p, filters, now) {
+  const end = parseUtc(p.eventEndUtc);
+  if (end != null && end < windowStart(filters, now)) return false;
+  return filters.natural.types.includes(p.subtype);
 }
 
 /**

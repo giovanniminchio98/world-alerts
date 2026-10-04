@@ -7,6 +7,11 @@
     <meta name="description" content="How the Global Incident Map collects, normalises, matches and labels incident data, and why no matching incident does not mean safe." />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#16324f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Incident Map" />
     <script>
       try {
         var p = JSON.parse(localStorage.getItem('gim:prefs') || '{}');
@@ -37,6 +42,7 @@
       <ul>
         <li><strong>Earthquakes</strong> — every event in the USGS “all earthquakes, past 7 days” feed (including small events and some non-earthquake seismic events such as quarry blasts, which are labelled).</li>
         <li><strong>Major disasters</strong> — events in the GDACS alert list (earthquakes, tropical cyclones, floods, volcanoes, droughts, wildfires) with the GDACS alert level as published.</li>
+        <li><strong>Natural events</strong> — open events in NASA EONET (wildfires, severe storms, volcanoes, floods, landslides, drought, dust, snow, temperature extremes), curated from other agencies. EONET gives no severity level, so these are never counted as high severity; storms are shown at their latest reported position with their path.</li>
         <li><strong>Weather alerts</strong> — active U.S. National Weather Service watches, warnings, advisories and statements (United States and territories only).</li>
         <li><strong>Satellite thermal detections</strong> — NASA FIRMS active-fire / thermal hotspot detections. These are counted separately and are <em>not</em> called incidents, because a detection can be a wildfire, agricultural burning, an industrial heat source, a gas flare or another hot surface.</li>
       </ul>
@@ -89,6 +95,10 @@
       <h2 id="limited-layers">Why blackouts and Internet layers have limited coverage</h2>
       <p>There is no single free, standardised, reliable global real-time feed of electricity outages: outage information is spread across thousands of utilities, grid operators and municipal dashboards, each with its own format and terms. Power outages are therefore designed as a regional provider plugin system that will only show data where an official structured feed is connected — and otherwise says “No electricity-outage data source is currently connected for this location.”</p>
       <p>Internet-disruption data (for example Cloudflare Radar) requires an API token that must not be exposed in browser code, has licence and redistribution conditions, and is usually country-, region- or network-level rather than city-specific. It is not connected by default. Airport/airspace status and public-health notices are likewise planned but not connected.</p>
+
+      <h2 id="emergency">Emergency numbers and offline use</h2>
+      <p>The location card lists emergency telephone numbers for the selected country, compiled from Wikipedia's list of emergency telephone numbers. They are community-compiled, can be incomplete or out of date, and are shown with a note to confirm locally.</p>
+      <p>The site can be installed and used offline. Offline, it shows only what this device already downloaded — the latest published data it saw (with its original timestamps and stale labels), map areas you viewed or saved, and the emergency-number list. Nothing updates until you reconnect.</p>
 
       <h2 id="use">Data-use limitations</h2>
       <p>Each source's attribution and licence notes are on the <a href="./sources.html">sources page</a>. Data is provided as published by the sources, may be revised, and may contain errors introduced by the source or by this project's processing.</p>

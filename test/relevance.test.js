@@ -5,7 +5,8 @@ import * as usgs from '../scripts/sources/usgs.mjs';
 import * as gdacs from '../scripts/sources/gdacs.mjs';
 import * as firms from '../scripts/sources/firms.mjs';
 import * as nws from '../scripts/sources/nws.mjs';
-import { sampleFirms, sampleGdacs, sampleNws, sampleUsgs } from './fixtures/sample-sources.mjs';
+import * as eonet from '../scripts/sources/eonet.mjs';
+import { sampleEonet, sampleFirms, sampleGdacs, sampleNws, sampleUsgs } from './fixtures/sample-sources.mjs';
 import sourcesConfig from '../config/sources.json';
 
 const NOW = Date.parse('2026-10-04T12:00:00Z');
@@ -15,6 +16,7 @@ const datasets = {
   earthquake: fcOf(usgs, sampleUsgs(NOW)),
   disaster: fcOf(gdacs, sampleGdacs(NOW)),
   weather: fcOf(nws, sampleNws(NOW)),
+  natural: fcOf(eonet, sampleEonet(NOW)),
 };
 const firesOut = firms.normalize(sampleFirms(NOW), ctx);
 const allRows = Object.entries(firesOut.files).filter(([k]) => k.startsWith('fires/tiles/')).flatMap(([, t]) => t.rows);
@@ -129,6 +131,19 @@ describe('location report scenarios', () => {
   it('a browser-side load error is treated as unavailable', () => {
     const r = report({ lon: 2.35, lat: 48.85, countryCode: 'FR' }, { extra: { loadErrors: { earthquake: true } } });
     expect(cat(r, 'earthquake').state).toBe('source-unavailable');
+  });
+
+  it('EONET natural events: nearby wildfire and inside a flood area', () => {
+    const la = cat(report({ lon: -118.24, lat: 34.05, countryCode: 'US' }), 'natural');
+    expect(la.state).toBe('found');
+    expect(la.items[0]).toMatchObject({ relation: 'nearby' });
+    expect(la.items[0].feature.properties.subtype).toBe('wildfires');
+    const bologna = cat(report({ lon: 11.34, lat: 44.99, countryCode: 'IT' }), 'natural');
+    expect(bologna.items[0].relation).toBe('inside-area');
+    const paris = cat(report({ lon: 2.35, lat: 48.85, countryCode: 'FR' }), 'natural');
+    expect(paris.state).toBe('none');
+    const filtered = cat(report({ lon: -118.24, lat: 34.05, countryCode: 'US' }, { filters: mergeFilters({ natural: { types: ['volcanoes'] } }) }), 'natural');
+    expect(filtered.items).toHaveLength(0);
   });
 
   it('inCoverage only restricts regional sources', () => {

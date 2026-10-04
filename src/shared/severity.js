@@ -62,6 +62,24 @@ export const GDACS_TYPES = {
   TS: 'Tsunami',
 };
 
+/** NASA EONET event categories shown on the map (earthquakes come from USGS; sea/lake ice excluded). */
+export const NATURAL_TYPES = {
+  wildfires: 'Wildfire',
+  severeStorms: 'Severe storm',
+  volcanoes: 'Volcano',
+  floods: 'Flood',
+  landslides: 'Landslide',
+  drought: 'Drought',
+  dustHaze: 'Dust and haze',
+  snow: 'Snow',
+  tempExtremes: 'Temperature extreme',
+  manmade: 'Human-made event',
+  waterColor: 'Water colour',
+};
+
+/** EONET category → hazard icon used on the map. */
+export const NATURAL_ICON = { wildfires: 'WF', volcanoes: 'VO', severeStorms: 'TC', floods: 'FL', drought: 'DR' };
+
 /** Hazards whose GDACS coordinate is a specific location rather than a broad area. */
 export const GDACS_POINT_HAZARDS = new Set(['EQ', 'VO']);
 

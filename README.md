@@ -39,6 +39,7 @@ The site never says a place is “safe”. When nothing is found it says: *“No
 | Earthquakes | [USGS](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php) “all earthquakes, past 7 days” GeoJSON feed | Global | ≈ every 15 min | 45 min |
 | Major disasters | [GDACS](https://www.gdacs.org/) event list (GeoJSON), GeoRSS fallback | Global (major events only) | ≈ every 30 min | 90 min |
 | Satellite thermal detections | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) VIIRS + MODIS, past 7 days | Global land | ≈ every 60 min | 180 min |
+| Natural events | [NASA EONET](https://eonet.gsfc.nasa.gov/docs/v3) open events (wildfires, storms, volcanoes, floods, …) | Global (curated) | ≈ every 60 min | 180 min |
 | Weather alerts | [U.S. National Weather Service](https://www.weather.gov/documentation/services-web-api) active alerts | **United States & territories only** | ≈ every 15 min | 90 min |
 | Internet disruptions | *not connected* (e.g. Cloudflare Radar) | — | — | — |
 | Electricity outages | *not connected* (regional provider plugins) | — | — | — |
@@ -49,13 +50,15 @@ Planned layers appear in the UI as **“not connected”** so a missing layer is
 
 Map features:
 
-- MapLibre GL JS 2D map, OpenFreeMap vector basemap, automatic offline fallback to bundled country outlines if tiles cannot load, and a text incident list if WebGL is unavailable.
+- MapLibre GL JS 2D map, OpenFreeMap vector basemap, automatic fallback to bundled country outlines if tiles cannot load.
 - Earthquakes sized and coloured by magnitude (blue < M3, yellow M3–4.9, orange M5–5.9, red M6+), small events clustered at low zoom, magnitudes labelled.
 - GDACS hazard icons, published alert level only (never an invented score), affected areas and cyclone tracks when GDACS publishes them, and “representative location” labelling otherwise.
 - FIRMS detections aggregated into a 1° grid at world/continental zoom and loaded as 10° tiles only for the area in view.
 - NWS warning polygons / zone outlines with transparent fills.
 - Filters: time window (1 h / 24 h / 48 h / 7 days), magnitude, depth, significant-only, GDACS level and hazard type, FIRMS confidence and sensor, NWS severity.
 - **Location Status card** with radius (25–500 km, default 100 km), per-category results, distance and compass direction, source status, and coverage notes. Shareable via URL.
+- **Emergency numbers** for the selected country (police / ambulance / fire, tap to call), compiled from Wikipedia's list of emergency telephone numbers and shown with a "confirm locally" note.
+- **Installable, works offline** (PWA): the app shell, country outlines, city list and emergency numbers are cached; the latest published data seen on the device is reused offline with its real timestamps; **Save for offline** on a location card also stores the place and pre-downloads its map area. Saved places are listed at the top of the layers panel.
 - Search: instant suggestions from a bundled city list, worldwide search via OpenStreetMap Nominatim only on submit.
 - Light/dark themes, km/miles, local time/UTC, keyboard navigation, reduced-motion support, mobile bottom sheet.
 
@@ -263,6 +266,9 @@ Manual test steps are in [`docs/TESTING.md`](docs/TESTING.md).
 
 ## Known limitations
 
+- **Emergency numbers are community-compiled** (from Wikipedia) and can be wrong or out of date; the card says to confirm locally.
+- **Offline mode shows only what this device has already downloaded**; it never updates until you reconnect. Map areas you have not viewed or saved show the simplified country outlines.
+
 - **Not an emergency warning system.** Data can be delayed, incomplete, revised, or unavailable. Always follow official authorities.
 - **No real-time guarantee.** Data reflects the last published update. GitHub Actions scheduled jobs can be delayed or skipped.
 - **Satellite hotspots are not confirmed wildfires.** FIRMS detections include agricultural burning, industrial heat sources, gas flares and other thermal anomalies; clouds and overpass timing cause gaps.
@@ -295,6 +301,8 @@ For electricity outages specifically, each provider plugin should declare its of
 - Basemap: [OpenFreeMap](https://openfreemap.org/) — © OpenMapTiles, data © OpenStreetMap contributors.
 - Geocoding: OpenStreetMap Nominatim (used within its [usage policy](https://operations.osmfoundation.org/policies/nominatim/): no autocomplete, explicit submit only, ≤ 1 request/second, cached).
 - Country outlines: Natural Earth via `world-atlas`. City list: GeoNames (CC BY 4.0) via `all-the-cities`.
+- Natural events: NASA Earth Observatory Natural Event Tracker (EONET), linking to each event's original source.
+- Emergency numbers: Wikipedia, "List of emergency telephone numbers" (CC BY-SA 4.0), via the `emergency-numbers` and `emergency-and-helplines` packages. Community-compiled — not verified official data.
 - Map rendering: MapLibre GL JS (BSD-3-Clause).
 
 This project is not affiliated with or endorsed by any of these organisations.
@@ -303,7 +311,7 @@ This project is not affiliated with or endorsed by any of these organisations.
 
 - No accounts, analytics, ads or tracking. No server receives your location or searches.
 - Browser geolocation is opt-in and used only in your browser.
-- Settings are stored only in `localStorage`.
+- Settings and saved places are stored only in `localStorage`; offline copies (app, data, viewed map tiles) are kept in the browser's Cache Storage by the service worker. Clearing site data removes them.
 - Third parties: OpenFreeMap receives tile requests needed to draw the map; Nominatim receives the text of searches you explicitly submit. Typing suggestions and clicked-point labels are computed locally.
 
 ## Project structure
@@ -313,12 +321,13 @@ index.html, sources.html, methodology.html, about.html   pages (Vite multi-page 
 config/sources.json            source registry (shared by scripts and UI via the manifest)
 scripts/
   refresh.mjs                  fetch due sources → data/generated (used by the workflow)
-  sources/{usgs,gdacs,firms,nws}.mjs   source adapters (fetchRaw + normalize)
+  sources/{usgs,gdacs,firms,nws,eonet}.mjs   source adapters (fetchRaw + normalize)
   lib/pipeline.js              validate, write, preserve-last-valid, metadata, manifest
   lib/http.js                  timeouts, retries, User-Agent, secret redaction
   build-fixtures.mjs           sample data through the real normalisers
   stage-data.mjs               copy live data (or generate samples) into public/data
-  build-geo-assets.mjs         bundled country outlines + city index → public/geo
+  build-geo-assets.mjs         bundled country outlines, city index, emergency numbers → public/geo
+  build-sw.mjs                 service worker for offline use (runs after vite build)
 src/
   shared/                      pure modules used by both Node and browser (geo, time, status, schema, FIRMS codec)
   lib/                         browser logic (filters, relevance, data loading, geocoding, URL state, prefs)

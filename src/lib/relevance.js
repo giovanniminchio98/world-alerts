@@ -16,11 +16,12 @@ import { describeSourceStatus } from '../shared/status.js';
 import { geometryContainsPoint, hasAreaGeometry, haversineKm, relativePosition } from '../shared/geo.js';
 import { toIsoUtc } from '../shared/time.js';
 import { decodeRow } from '../shared/firms-codec.js';
-import { disasterMatches, earthquakeMatches, isHighSeverity, thermalRowMatches, weatherMatches } from './filters.js';
+import { disasterMatches, earthquakeMatches, isHighSeverity, naturalMatches, thermalRowMatches, weatherMatches } from './filters.js';
 
 export const CATEGORY_ORDER = [
   { category: 'earthquake', sourceKey: 'usgs-earthquakes' },
   { category: 'disaster', sourceKey: 'gdacs-disasters' },
+  { category: 'natural', sourceKey: 'eonet-events' },
   { category: 'thermal', sourceKey: 'firms-hotspots' },
   { category: 'weather', sourceKey: 'nws-alerts' },
   { category: 'internet', sourceKey: 'internet-outages' },
@@ -73,12 +74,13 @@ function matchEarthquakes(fc, sel, filters, now) {
   return items.sort((a, b) => a.km - b.km);
 }
 
-function matchDisasters(fc, sel, filters, now) {
+/** Shared by GDACS and EONET: area containment, point radius, representative points and country lists. */
+function matchDisasters(fc, sel, filters, now, matcher = disasterMatches) {
   const origin = [sel.lon, sel.lat];
   const items = [];
   for (const f of fc?.features || []) {
     const p = f.properties;
-    if (!disasterMatches(p, filters, now)) continue;
+    if (!matcher(p, filters, now)) continue;
     const base = pointItem(f, origin);
     const area = p.affectedGeometry;
     if (hasAreaGeometry(area) && geometryContainsPoint(area, origin)) {
@@ -146,7 +148,7 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 /**
  * @param {object} args
  * @param {{lon:number,lat:number,radiusKm:number,countryCode?:string}} args.selection
- * @param {object} args.datasets  { earthquake, disaster, weather } FeatureCollections (or null if not loaded)
+ * @param {object} args.datasets  { earthquake, disaster, natural, weather } FeatureCollections (or null if not loaded)
  * @param {object} args.loadErrors { earthquake: bool, ... } — data file failed to load in the browser
  * @param {object} args.thermal   { rows, sensors } or null when unavailable
  * @param {Array}  args.sources   manifest.sources
@@ -221,6 +223,7 @@ export function buildLocationReport({
     } else {
       if (category === 'earthquake') row.items = matchEarthquakes(data, selection, filters, now);
       else if (category === 'disaster') row.items = matchDisasters(data, selection, filters, now);
+      else if (category === 'natural') row.items = matchDisasters(data, selection, filters, now, naturalMatches);
       else if (category === 'weather') row.items = matchWeather(data, selection, filters, now);
       if (row.items.length) {
         row.state = 'found';
@@ -245,10 +248,10 @@ export function buildLocationReport({
           : `No high-severity incidents from currently connected sources were found within ${r} km during the selected time window.`,
       );
     } else {
-      lines.push(`No monitored incidents (earthquakes, major-disaster alerts or weather alerts) were found within ${r} km during the selected time window.`);
+      lines.push(`No monitored incidents (earthquakes, disaster alerts, natural events or weather alerts) were found within ${r} km during the selected time window.`);
     }
     if (thermalCount > 0) {
-      lines.push(`${plural(thermalCount, 'satellite thermal detection')} within ${r} km — these are heat signatures and not necessarily wildfires.`);
+      lines.push(`${plural(thermalCount, 'heat spot')} seen by satellite within ${r} km — possible fires, crop burning or industrial heat, not necessarily wildfires.`);
     }
   }
   if (degraded > 0) lines.push('Some sources are stale or unavailable; see the category rows below.');

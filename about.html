@@ -7,6 +7,11 @@
     <meta name="description" content="Purpose, disclaimer and privacy statement for the Global Incident Map." />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#16324f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Incident Map" />
     <script>
       try {
         var p = JSON.parse(localStorage.getItem('gim:prefs') || '{}');
@@ -37,7 +42,7 @@
       <p>It is a static website hosted on GitHub Pages. Data is refreshed by scheduled GitHub Actions workflows, so it is never real-time: it reflects the last published update, and data may be delayed.</p>
 
       <h2>No affiliation</h2>
-      <p>This project is independent. It is not affiliated with, endorsed by, or operated by USGS, GDACS, the European Commission, the United Nations, NASA, NOAA / the National Weather Service, OpenStreetMap, OpenFreeMap or any other data or map provider. Their names are used only to attribute data.</p>
+      <p>This project is independent. It is not affiliated with, endorsed by, or operated by USGS, GDACS, the European Commission, the United Nations, NASA, Wikipedia, NOAA / the National Weather Service, OpenStreetMap, OpenFreeMap or any other data or map provider. Their names are used only to attribute data.</p>
 
       <h2 id="disclaimer">Emergency disclaimer</h2>
       <p class="callout"><strong>This website aggregates third-party public data and may be delayed, incomplete, inaccurate, or unavailable. It is not an emergency warning system and must not be used as a substitute for official local authorities, emergency services, or safety instructions.</strong></p>
@@ -48,7 +53,7 @@
         <li>No accounts, no sign-in, no advertising, no analytics and no tracking.</li>
         <li>This project has no server or database, and never receives your location or searches.</li>
         <li>“Use my location” is opt-in: your browser asks permission, and the coordinates are used only inside your browser to centre the map and build the location card.</li>
-        <li>Settings (units, time zone display, theme, filters) are stored only in your browser's local storage. Clearing site data removes them.</li>
+        <li>Settings (units, time zone display, theme, filters) and saved places are stored only in your browser's local storage. For offline use, the app, the latest data it downloaded and map tiles you viewed or saved are kept in your browser's cache. Clearing site data removes all of it.</li>
         <li>Clicked points are labelled offline using a bundled city list and country outlines — no request is made.</li>
         <li><strong>Third parties:</strong> to draw the basemap your browser requests map tiles from <a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a>. When you submit a worldwide place search, the search text is sent to <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener noreferrer">OpenStreetMap Nominatim</a> (see the <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener noreferrer">OSMF privacy policy</a>). Suggestions while typing come from a built-in list and send nothing. These providers receive the normal technical information of any web request (such as your IP address). GitHub Pages hosts the site and may keep standard server logs.</li>
       </ul>
@@ -59,6 +64,8 @@
         <li>Disaster alerts: GDACS — Global Disaster Alert and Coordination System (European Commission JRC and UN OCHA).</li>
         <li>Thermal detections: NASA FIRMS (LANCE).</li>
         <li>Weather alerts: NOAA / U.S. National Weather Service.</li>
+        <li>Natural events: NASA Earth Observatory Natural Event Tracker (EONET).</li>
+        <li>Emergency numbers: Wikipedia, “List of emergency telephone numbers” (CC BY-SA 4.0). Community-compiled — always confirm locally.</li>
         <li>Basemap: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors.</li>
         <li>Country outlines: Natural Earth. City list: GeoNames (CC BY 4.0).</li>
         <li>Map rendering: MapLibre GL JS.</li>

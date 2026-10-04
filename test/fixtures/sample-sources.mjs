@@ -363,9 +363,48 @@ export function sampleNws(now) {
   };
 }
 
+// --- NASA EONET -------------------------------------------------------------------
+
+export function sampleEonet(now) {
+  const t = (ago) => new Date(now - ago).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const ev = (id, title, cat, geometry, extra = {}) => ({
+    id,
+    title: `[Sample] ${title}`,
+    description: null,
+    link: `https://eonet.gsfc.nasa.gov/api/v3/events/${id}`,
+    closed: null,
+    categories: [{ id: cat, title: cat }],
+    sources: [{ id: 'SAMPLE', url: 'https://eonet.gsfc.nasa.gov/' }],
+    geometry,
+    ...extra,
+  });
+  return {
+    title: 'EONET Events (sample)',
+    events: [
+      ev('EONET_S1', 'Ridge Fire, Los Angeles County, California', 'wildfires', [
+        { magnitudeValue: 850, magnitudeUnit: 'acres', date: t(30 * HOUR), type: 'Point', coordinates: [-118.05, 34.42] },
+        { magnitudeValue: 2300, magnitudeUnit: 'acres', date: t(4 * HOUR), type: 'Point', coordinates: [-118.05, 34.42] },
+      ]),
+      ev('EONET_S2', 'Hurricane SAMPLE-ALBA', 'severeStorms', [
+        { magnitudeValue: 75, magnitudeUnit: 'kts', date: t(3 * DAY), type: 'Point', coordinates: [-62.0, 17.0] },
+        { magnitudeValue: 95, magnitudeUnit: 'kts', date: t(2 * DAY), type: 'Point', coordinates: [-66.5, 19.2] },
+        { magnitudeValue: 110, magnitudeUnit: 'kts', date: t(1 * DAY), type: 'Point', coordinates: [-71.0, 21.8] },
+        { magnitudeValue: 105, magnitudeUnit: 'kts', date: t(3 * HOUR), type: 'Point', coordinates: [-74.6, 24.5] },
+      ]),
+      ev('EONET_S3', 'Etna Volcano, Italy', 'volcanoes', [{ date: t(5 * DAY), type: 'Point', coordinates: [14.99, 37.75] }]),
+      ev('EONET_S4', 'Floods in the Po Valley, Italy', 'floods', [
+        { date: t(2 * DAY), type: 'Polygon', coordinates: [[[10.5, 44.8], [12.2, 44.8], [12.2, 45.3], [10.5, 45.3], [10.5, 44.8]]] },
+      ]),
+      ev('EONET_S5', 'Sample earthquake (excluded — USGS is used)', 'earthquakes', [{ date: t(HOUR), type: 'Point', coordinates: [0, 0] }]),
+      ev('EONET_S6', 'Iceberg A99 (excluded)', 'seaLakeIce', [{ date: t(HOUR), type: 'Point', coordinates: [-40, -70] }]),
+    ],
+  };
+}
+
 export const SAMPLE_BUILDERS = {
   'usgs-earthquakes': sampleUsgs,
   'gdacs-disasters': sampleGdacs,
   'firms-hotspots': sampleFirms,
   'nws-alerts': sampleNws,
+  'eonet-events': sampleEonet,
 };

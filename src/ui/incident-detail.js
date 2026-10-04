@@ -1,7 +1,7 @@
 // Detail view for one incident or thermal detection (map popup + list/card expansion).
 import { html, raw, safeUrl } from '../lib/dom.js';
 import { fmtAgo, fmtCoords, fmtRelPos, fmtTime, countryName } from '../lib/format.js';
-import { earthquakeBandLabel } from '../shared/severity.js';
+import { earthquakeBandLabel, NATURAL_ICON } from '../shared/severity.js';
 import { iconDataUrl } from '../map/icons.js';
 import { colorFor } from '../lib/colors.js';
 
@@ -62,6 +62,21 @@ function disasterBody(f, now, origin) {
   `;
 }
 
+function naturalBody(f, now, origin) {
+  const p = f.properties;
+  const a = p.attributes || {};
+  const others = (a.originalSources || []).slice(1).filter((s) => safeUrl(s.url));
+  return html`
+    ${row('Event type', a.eventLabel)}
+    ${row('Size / strength (source)', a.magnitude)}
+    ${row('First reported', timeHtml(p.eventStartUtc, now))}
+    ${row('Latest update', timeHtml(p.sourceUpdatedUtc, now))}
+    ${relativeLine(p, origin, f.geometry)}
+    ${row('Geometry', p.affectedGeometry ? 'Affected area published (shown on map)' : a.track ? `Latest of ${a.positions} reported positions; path shown on map` : p.locationPrecision === 'representative' ? 'Representative location — affected area may be broader.' : 'Event location')}
+    ${others.length ? row('Other sources', html`${others.map((s, i) => html`${i ? ', ' : ''}<a href="${s.url}" target="_blank" rel="noopener noreferrer">${s.id}</a>`)}`) : ''}
+  `;
+}
+
 function weatherBody(f, now) {
   const p = f.properties;
   const a = p.attributes || {};
@@ -95,6 +110,7 @@ function sourceFooter(p, linkLabel, now) {
 const LINK_LABELS = {
   earthquake: 'View event on USGS',
   disaster: 'View GDACS event report',
+  natural: 'Original source',
   weather: 'Official NWS alert record',
 };
 
@@ -103,8 +119,10 @@ export function incidentDetail(feature, { now = Date.now(), origin = null, onChe
   const p = feature.properties;
   const el = document.createElement('article');
   el.className = `incident-detail cat-${p.category}`;
-  const icon = p.category === 'disaster' ? html`<img class="hazard-icon" src="${iconDataUrl(p.subtype)}" alt="" width="28" height="28">` : '';
-  const body = p.category === 'earthquake' ? earthquakeBody(feature, now, origin) : p.category === 'disaster' ? disasterBody(feature, now, origin) : weatherBody(feature, now);
+  const iconType = p.category === 'disaster' ? p.subtype : p.category === 'natural' ? NATURAL_ICON[p.subtype] || 'default' : null;
+  const icon = iconType ? html`<img class="hazard-icon" src="${iconDataUrl(iconType)}" alt="" width="28" height="28">` : '';
+  const BODIES = { earthquake: earthquakeBody, disaster: disasterBody, natural: naturalBody, weather: weatherBody };
+  const body = (BODIES[p.category] || weatherBody)(feature, now, origin);
   el.innerHTML = html`
     <header class="detail-head">
       ${icon}
@@ -130,6 +148,7 @@ export function incidentDetail(feature, { now = Date.now(), origin = null, onChe
 export function categoryKicker(p) {
   if (p.category === 'earthquake') return p.subtype && p.subtype !== 'earthquake' ? `Seismic event · ${p.subtype}` : 'Earthquake · USGS';
   if (p.category === 'disaster') return `${p.attributes?.hazardLabel || 'Disaster'} · GDACS alert`;
+  if (p.category === 'natural') return `${p.attributes?.eventLabel || 'Natural event'} · NASA EONET`;
   if (p.category === 'weather') return 'Weather alert · NWS (US only)';
   return p.category;
 }

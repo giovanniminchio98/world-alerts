@@ -3,7 +3,7 @@
 import { html, raw, setHtml } from '../lib/dom.js';
 import { TIME_WINDOWS } from '../shared/time.js';
 import { DEPTH_RANGES } from '../lib/filters.js';
-import { GDACS_TYPES, NWS_SEVERITIES } from '../shared/severity.js';
+import { GDACS_TYPES, NATURAL_ICON, NATURAL_TYPES, NWS_SEVERITIES } from '../shared/severity.js';
 import { HINT_COLORS, FIRE_COLORS } from '../lib/colors.js';
 import { iconDataUrl } from '../map/icons.js';
 import { statusBadge, statusSentence } from './status-ui.js';
@@ -14,6 +14,7 @@ import { categoryIcon } from './category-style.js';
 const LAYERS = [
   { category: 'earthquake', sourceKey: 'usgs-earthquakes', title: 'Earthquakes', sub: 'USGS · global' },
   { category: 'disaster', sourceKey: 'gdacs-disasters', title: 'Major disasters', sub: 'GDACS · global alerts' },
+  { category: 'natural', sourceKey: 'eonet-events', title: 'Natural events', sub: 'NASA EONET · curated, global' },
   { category: 'thermal', sourceKey: 'firms-hotspots', title: 'Satellite thermal detections', sub: 'NASA FIRMS · not confirmed wildfires' },
   { category: 'weather', sourceKey: 'nws-alerts', title: 'Weather alerts', sub: 'NWS · United States only' },
 ];
@@ -56,7 +57,7 @@ export class Panel {
           ${Object.entries(TIME_WINDOWS).map(
             ([k, w]) => html`<label class="seg"><input type="radio" name="window" value="${k}" ${checked(f.window === k)}><span>${w.short}</span></label>`,
           )}
-          <p id="window-help" class="muted small">Applies to the map, list and location card. Ongoing alerts are shown while active.</p>
+          <p id="window-help" class="muted small">Applies to the map and the location card. Ongoing alerts are shown while active.</p>
         </fieldset>
 
         <h2 class="panel-heading">Layers</h2>
@@ -144,6 +145,13 @@ export class Panel {
         </fieldset>
         <p class="muted small">Dashed outlines show affected areas or tracks when GDACS publishes them. Faint halos mark representative locations — the affected area may be broader.</p>`;
     }
+    if (category === 'natural') {
+      return html`
+        <fieldset class="checks"><legend>Event type</legend>
+          ${Object.entries(NATURAL_TYPES).map(([k, t]) => html`<label class="check"><input type="checkbox" data-filter="eo-type" value="${k}" ${checked(f.natural.types.includes(k))}><img src="${iconDataUrl(NATURAL_ICON[k] || 'default')}" alt="" width="18" height="18"> ${t}</label>`)}
+        </fieldset>
+        <p class="muted small">Teal markers. EONET curates open events from other agencies and gives no severity level. Storms show their latest reported position and path; dashed outlines are affected areas when published.</p>`;
+    }
     if (category === 'thermal') {
       return html`
         <label>Confidence
@@ -230,6 +238,7 @@ export class Panel {
       on(sel, () => assign([...el.querySelectorAll(sel)].filter((b) => b.checked).map((b) => b.value)));
     multi('[data-filter="gd-level"]', (v) => (f.disaster.levels = v));
     multi('[data-filter="gd-type"]', (v) => (f.disaster.types = v));
+    multi('[data-filter="eo-type"]', (v) => (f.natural.types = v));
     multi('[data-filter="wx-sev"]', (v) => (f.weather.severities = v));
     el.querySelectorAll('[data-pref]').forEach((s) => s.addEventListener('change', () => this.onPrefChange(s.dataset.pref, s.value)));
   }
@@ -243,6 +252,7 @@ export function describeActiveFilters(f, defaults) {
   if (f.earthquake.significantOnly) parts.push('significant earthquakes only');
   if (f.disaster.levels.length !== defaults.disaster.levels.length) parts.push(`GDACS levels: ${f.disaster.levels.join(', ') || 'none'}`);
   if (f.disaster.types.length !== defaults.disaster.types.length) parts.push(`hazard types: ${f.disaster.types.join(', ') || 'none'}`);
+  if (f.natural.types.length !== defaults.natural.types.length) parts.push(`natural event types: ${f.natural.types.length} of ${defaults.natural.types.length}`);
   if (f.thermal.minConfidence > 0) parts.push(f.thermal.minConfidence === 2 ? 'high-confidence detections only' : 'nominal/high-confidence detections');
   if (Array.isArray(f.thermal.sensors)) parts.push('some sensors hidden');
   if (f.weather.severities.length !== defaults.weather.severities.length) parts.push(`NWS severity: ${f.weather.severities.join(', ') || 'none'}`);

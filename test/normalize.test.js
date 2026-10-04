@@ -3,9 +3,10 @@ import * as usgs from '../scripts/sources/usgs.mjs';
 import * as gdacs from '../scripts/sources/gdacs.mjs';
 import * as firms from '../scripts/sources/firms.mjs';
 import * as nws from '../scripts/sources/nws.mjs';
+import * as eonet from '../scripts/sources/eonet.mjs';
 import { validateIncidentCollection, validateIncident, makeIncident } from '../src/shared/schema.js';
 import { confidenceClass, acquisitionTimeMs, tileKeyFor, tileKeysForBbox, decodeRow } from '../src/shared/firms-codec.js';
-import { sampleFirms, sampleGdacs, sampleGdacsRss, sampleNws, sampleUsgs } from './fixtures/sample-sources.mjs';
+import { sampleEonet, sampleFirms, sampleGdacs, sampleGdacsRss, sampleNws, sampleUsgs } from './fixtures/sample-sources.mjs';
 
 const NOW = Date.parse('2026-10-04T12:00:00Z');
 const ctx = { now: NOW, nowIso: '2026-10-04T12:00:00Z', log: () => {} };
@@ -176,5 +177,38 @@ describe('schema validation', () => {
     expect(validateIncident({ ...good, properties: { ...good.properties, sourceUrl: 'javascript:alert(1)' } })).toContain('sourceUrl must be http(s)');
     expect(validateIncidentCollection({ type: 'FeatureCollection', features: [good, good] }).errors[0]).toMatch(/duplicate id/);
     expect(validateIncidentCollection({ features: [] }).valid).toBe(false);
+  });
+});
+
+describe('NASA EONET normalisation', () => {
+  const out = eonet.normalize(sampleEonet(NOW), ctx);
+  const fc = incidents(out, eonet.key);
+  const byType = (t) => fc.features.find((f) => f.properties.subtype === t);
+  it('validates and skips earthquakes (USGS is used) and sea ice', () => {
+    expect(validateIncidentCollection(fc)).toEqual({ valid: true, errors: [] });
+    expect(fc.features.map((f) => f.properties.subtype).sort()).toEqual(['floods', 'severeStorms', 'volcanoes', 'wildfires']);
+  });
+  it('uses the latest position, keeps storm paths and never invents severity', () => {
+    const storm = byType('severeStorms').properties;
+    expect(byType('severeStorms').geometry.coordinates).toEqual([-74.6, 24.5]);
+    expect(storm.locationPrecision).toBe('representative');
+    expect(storm.attributes.track.coordinates).toHaveLength(4);
+    expect(storm.severity).toMatchObject({ label: '105 kts', sourceLevel: null, colorHint: null });
+    expect(storm.eventStartUtc).toBe('2026-10-01T12:00:00Z');
+    expect(storm.sourceUpdatedUtc).toBe('2026-10-04T09:00:00Z');
+  });
+  it('treats a stationary wildfire as an exact point without a track', () => {
+    const wf = byType('wildfires').properties;
+    expect(wf.locationPrecision).toBe('exact');
+    expect(wf.attributes.track).toBeNull();
+    expect(wf.severity.label).toBe('2,300 acres');
+  });
+  it('keeps polygon events as affected areas', () => {
+    const fl = byType('floods').properties;
+    expect(fl.locationPrecision).toBe('area');
+    expect(fl.affectedGeometry.type).toBe('Polygon');
+  });
+  it('rejects a response without an events array', async () => {
+    await expect(eonet.fetchRaw({ fetchJson: async () => ({}) })).rejects.toThrow(/no events/);
   });
 });

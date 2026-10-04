@@ -13,7 +13,7 @@
 
 import { parseUtc } from './time.js';
 
-export const CATEGORIES = ['earthquake', 'disaster', 'thermal', 'weather', 'internet', 'power', 'aviation', 'health'];
+export const CATEGORIES = ['earthquake', 'disaster', 'natural', 'thermal', 'weather', 'internet', 'power', 'aviation', 'health'];
 const GEOMETRY_TYPES = ['Point', 'MultiPoint', 'LineString', 'MultiLineString', 'Polygon', 'MultiPolygon', 'GeometryCollection'];
 
 function validPosition(p) {

@@ -2,6 +2,7 @@
 import { ICON_TYPES } from './icons.js';
 import { fireColorKey } from '../lib/colors.js';
 import { summaryCellCount, thermalRowMatches } from '../lib/filters.js';
+import { NATURAL_ICON } from '../shared/severity.js';
 
 const fc = (features) => ({ type: 'FeatureCollection', features });
 
@@ -44,6 +45,23 @@ export function disastersToMap(features) {
     });
     if (p.affectedGeometry) areas.push({ type: 'Feature', geometry: p.affectedGeometry, properties: { fid: p.id, color } });
     if (p.attributes?.track) tracks.push({ type: 'Feature', geometry: p.attributes.track, properties: { fid: p.id, color } });
+  }
+  return { points: fc(points), areas: fc(areas), tracks: fc(tracks) };
+}
+
+export function naturalToMap(features) {
+  const points = [];
+  const areas = [];
+  const tracks = [];
+  for (const f of features) {
+    const p = f.properties;
+    points.push({
+      type: 'Feature',
+      geometry: f.geometry,
+      properties: { fid: p.id, hazard: NATURAL_ICON[p.subtype] || 'default', representative: p.locationPrecision === 'representative' },
+    });
+    if (p.affectedGeometry) areas.push({ type: 'Feature', geometry: p.affectedGeometry, properties: { fid: p.id } });
+    if (p.attributes?.track) tracks.push({ type: 'Feature', geometry: p.attributes.track, properties: { fid: p.id } });
   }
   return { points: fc(points), areas: fc(areas), tracks: fc(tracks) };
 }

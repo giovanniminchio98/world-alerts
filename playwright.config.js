@@ -12,7 +12,7 @@ export default defineConfig({
   testDir: 'test/e2e',
   timeout: 45_000,
   retries: 0,
-  use: { baseURL: 'http://localhost:4173/', launchOptions },
+  use: { baseURL: 'http://localhost:4173/', launchOptions, serviceWorkers: 'allow' },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 }, launchOptions } },
     { name: 'mobile', use: { ...devices['Pixel 7'], launchOptions } },

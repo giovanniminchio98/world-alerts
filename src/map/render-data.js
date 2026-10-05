@@ -29,7 +29,8 @@ export function earthquakesToMap(features) {
 /**
  * GDACS / EONET events → icon points, affected-area polygons and tracks, each
  * carrying its hazard key and colour. `ring` is the icon ring colour hint (the
- * GDACS alert level as published; EONET has none).
+ * GDACS alert level as published; EONET has none). `ended` marks events the
+ * source no longer lists as current; they are drawn faded and underneath.
  */
 function eventsToMap(features, ring) {
   const points = [];
@@ -39,6 +40,7 @@ function eventsToMap(features, ring) {
     const p = f.properties;
     const hazard = hazardOf(p.subtype);
     const hcolor = hazardColor(hazard);
+    const ended = isEnded(p);
     points.push({
       type: 'Feature',
       geometry: f.geometry,
@@ -49,14 +51,19 @@ function eventsToMap(features, ring) {
         color: ring(p),
         representative: p.locationPrecision === 'representative',
         hasArea: Boolean(p.affectedGeometry),
+        ended,
       },
     });
     // Unwrap at the antimeridian so a path or area crossing 180° is not drawn around the world.
-    if (p.affectedGeometry) areas.push({ type: 'Feature', geometry: unwrapGeometry(p.affectedGeometry), properties: { fid: p.id, hazard, hcolor } });
-    if (p.attributes?.track) tracks.push({ type: 'Feature', geometry: unwrapGeometry(p.attributes.track), properties: { fid: p.id, hazard, hcolor } });
+    if (p.affectedGeometry) areas.push({ type: 'Feature', geometry: unwrapGeometry(p.affectedGeometry), properties: { fid: p.id, hazard, hcolor, ended } });
+    if (p.attributes?.track) tracks.push({ type: 'Feature', geometry: unwrapGeometry(p.attributes.track), properties: { fid: p.id, hazard, hcolor, ended } });
   }
-  return { points: fc(points), areas: fc(areas), tracks: fc(tracks) };
+  const endedFirst = (a, b) => Number(b.properties.ended) - Number(a.properties.ended);
+  return { points: fc(points.sort(endedFirst)), areas: fc(areas.sort(endedFirst)), tracks: fc(tracks.sort(endedFirst)) };
 }
+
+/** True when the source says the event is over (GDACS no longer current, EONET closed). */
+export const isEnded = (p) => p.status === 'past';
 
 export const disastersToMap = (features) => eventsToMap(features, (p) => p.severity.colorHint || 'gray');
 export const naturalToMap = (features) => eventsToMap(features, () => 'natural');

@@ -17,6 +17,24 @@ export function severityBadge(p) {
   return html`<span class="sev-badge" style="--sev:${color}"><span class="sev-dot" aria-hidden="true"></span>${p.severity?.label || 'Not classified'}</span>`;
 }
 
+const SOURCE_NAMES = { disaster: 'GDACS', natural: 'NASA EONET' };
+
+/** "Ongoing" / "Ended" as stated by the source (GDACS current flag, EONET open/closed). */
+export function activityBadge(p) {
+  if (!SOURCE_NAMES[p.category] || !p.status) return '';
+  const ended = p.status === 'past';
+  return html`<span class="activity-badge ${ended ? 'is-ended' : 'is-ongoing'}">${ended ? 'Ended' : 'Ongoing'}</span>`;
+}
+
+function activityRow(p, now) {
+  const src = SOURCE_NAMES[p.category];
+  if (!src || !p.status) return '';
+  const what = p.category === 'natural' ? 'open' : 'current';
+  if (p.status !== 'past') return row('Status', `Ongoing — ${src} still lists this event as ${what}`);
+  const last = p.sourceUpdatedUtc ? ` (last update ${fmtAgo(p.sourceUpdatedUtc, now)})` : '';
+  return row('Status', `Ended — ${src} no longer lists this event as ${what}${last}`);
+}
+
 function relativeLine(p, origin, geometry) {
   if (!origin || geometry?.type !== 'Point') return '';
   const pos = fmtRelPos(origin, geometry.coordinates);
@@ -52,8 +70,9 @@ function disasterBody(f, now, origin) {
     ${row('GDACS alert level', a.alertLevel ? `${a.alertLevel}${a.alertScore != null ? ` (score ${a.alertScore})` : ''}` : 'Not supplied by source')}
     ${row('Severity (source)', a.severityText)}
     ${row('Population (source)', a.populationText)}
+    ${activityRow(p, now)}
     ${row('Start', timeHtml(p.eventStartUtc, now))}
-    ${row('Latest episode end', timeHtml(p.eventEndUtc, now))}
+    ${row('Latest assessment covers until', timeHtml(p.eventEndUtc, now))}
     ${row('Countries / region', countries)}
     ${relativeLine(p, origin, f.geometry)}
     ${row('Geometry', p.affectedGeometry ? 'Affected area published by source (shown on map)' : p.locationPrecision === 'representative' ? 'Representative event location — affected area may be broader.' : 'Event location')}
@@ -69,6 +88,7 @@ function naturalBody(f, now, origin) {
   const others = (a.originalSources || []).slice(1).filter((s) => safeUrl(s.url));
   return html`
     ${row('Event type', a.eventLabel)}
+    ${activityRow(p, now)}
     ${row('Size / strength (source)', a.magnitude)}
     ${row('First reported', timeHtml(p.eventStartUtc, now))}
     ${row('Latest update', timeHtml(p.sourceUpdatedUtc, now))}
@@ -130,7 +150,7 @@ export function incidentDetail(feature, { now = Date.now(), origin = null, onChe
       <div>
         <p class="detail-kicker">${categoryKicker(p)}</p>
         <h3 class="detail-title">${p.title}</h3>
-        ${severityBadge(p)}
+        ${severityBadge(p)} ${activityBadge(p)}
       </div>
     </header>
     <dl class="kv-list">${body}</dl>

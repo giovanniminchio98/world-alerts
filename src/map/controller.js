@@ -19,6 +19,8 @@ export const BASEMAPS = {
 };
 const FONT = ['Noto Sans Regular'];
 export const NATURAL_COLOR = '#0f8a7e';
+/** Ring and outline colour for events the source no longer lists as current. */
+export const ENDED_COLOR = '#8a94a3';
 const STYLE_TIMEOUT_MS = 10_000;
 
 export const WORLD_VIEW = { center: [10, 20], zoom: 1.4 };
@@ -188,15 +190,19 @@ export class MapController {
     // hazard type (flood "pixels", storm wind streaks, flames, …); NWS polygons
     // keep their severity colour and get the hazard texture on top.
     const pattern = ['concat', 'pat-', ['get', 'hazard']];
+    // Events the source no longer lists as current stay visible (they are still in the
+    // time window) but are faded, so ongoing ones stand out.
+    const ended = ['==', ['get', 'ended'], true];
+    const fade = (active, faded) => ['case', ended, faded, active];
     m.addLayer({ id: 'gim-nws-fill', type: 'fill', source: 'gim-nws', paint: { 'fill-color': colorExpr, 'fill-opacity': ['match', ['get', 'color'], 'red', 0.26, 'orange', 0.2, 0.13] } }, below);
     m.addLayer({ id: 'gim-nws-pattern', type: 'fill', source: 'gim-nws', filter: ['has', 'hazard'], paint: { 'fill-pattern': pattern, 'fill-opacity': 0.85 } }, below);
     m.addLayer({ id: 'gim-nws-line', type: 'line', source: 'gim-nws', paint: { 'line-color': colorExpr, 'line-width': 1.2, 'line-opacity': 0.85 } }, below);
     for (const src of ['gdacs', 'eonet']) {
-      m.addLayer({ id: `gim-${src}-area-fill`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-color': ['get', 'hcolor'], 'fill-opacity': 0.16 } }, below);
-      m.addLayer({ id: `gim-${src}-area-pattern`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-pattern': pattern, 'fill-opacity': 0.9 } }, below);
-      m.addLayer({ id: `gim-${src}-area-line`, type: 'line', source: `gim-${src}-areas`, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 1.6, 'line-dasharray': [3, 2] } }, below);
+      m.addLayer({ id: `gim-${src}-area-fill`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-color': ['get', 'hcolor'], 'fill-opacity': fade(0.16, 0.05) } }, below);
+      m.addLayer({ id: `gim-${src}-area-pattern`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-pattern': pattern, 'fill-opacity': fade(0.9, 0.25) } }, below);
+      m.addLayer({ id: `gim-${src}-area-line`, type: 'line', source: `gim-${src}-areas`, paint: { 'line-color': fade(['get', 'hcolor'], ENDED_COLOR), 'line-width': 1.6, 'line-dasharray': [3, 2], 'line-opacity': fade(1, 0.5) } }, below);
       // Tracks and their arrows appear from regional zoom, to keep the world view clean.
-      m.addLayer({ id: `gim-${src}-track`, type: 'line', source: `gim-${src}-tracks`, minzoom: 2.5, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 2.4, 'line-dasharray': [1, 1.5] } }, below);
+      m.addLayer({ id: `gim-${src}-track`, type: 'line', source: `gim-${src}-tracks`, minzoom: 2.5, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 2.4, 'line-dasharray': [1, 1.5], 'line-opacity': fade(1, 0.3) } }, below);
       // Arrows along a storm's path show its direction of travel (towards the latest position).
       m.addLayer({
         id: `gim-${src}-track-arrows`,
@@ -212,7 +218,7 @@ export class MapController {
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
         },
-        paint: { 'icon-color': ['get', 'hcolor'], 'icon-halo-color': halo, 'icon-halo-width': 1.5 },
+        paint: { 'icon-color': ['get', 'hcolor'], 'icon-halo-color': halo, 'icon-halo-width': 1.5, 'icon-opacity': fade(1, 0.3) },
       });
       // Events with only a point get a soft glow in the hazard colour — it marks
       // "around here" without drawing a boundary the source never published.
@@ -226,7 +232,7 @@ export class MapController {
             'circle-color': ['get', 'hcolor'],
             'circle-blur': 1,
             'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 16, 4, 30, 7, 60, 10, 110],
-            'circle-opacity': ['case', ['get', 'representative'], 0.55, 0.4],
+            'circle-opacity': fade(['case', ['get', 'representative'], 0.55, 0.4], 0.12),
           },
         },
         below,
@@ -327,9 +333,9 @@ export class MapController {
         paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 12, 6, 17],
           'circle-color': 'rgba(0,0,0,0)',
-          'circle-stroke-color': src === 'gdacs' ? colorExpr : NATURAL_COLOR,
+          'circle-stroke-color': ['case', ['==', ['get', 'ended'], true], ENDED_COLOR, src === 'gdacs' ? colorExpr : NATURAL_COLOR],
           'circle-stroke-width': src === 'gdacs' ? 3 : 2,
-          'circle-stroke-opacity': ['case', ['get', 'representative'], 0.6, 1],
+          'circle-stroke-opacity': ['case', ['==', ['get', 'ended'], true], 0.7, ['get', 'representative'], 0.6, 1],
         },
       });
       m.addLayer({
@@ -340,7 +346,10 @@ export class MapController {
           'icon-image': ['concat', 'hz-', ['get', 'hazard']],
           'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.5, 6, 0.75],
           'icon-allow-overlap': true,
+          // Ongoing events are drawn on top of ended ones.
+          'symbol-sort-key': ['case', ['==', ['get', 'ended'], true], 0, 1],
         },
+        paint: { 'icon-opacity': ['case', ['==', ['get', 'ended'], true], 0.45, 1] },
       });
     }
   }

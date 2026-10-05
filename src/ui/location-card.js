@@ -4,7 +4,7 @@ import { fmtAgo, fmtCoords, fmtDist, fmtTime, countryName } from '../lib/format.
 import { formatDateTime } from '../shared/time.js';
 import { describeSourceStatus } from '../shared/status.js';
 import { RADIUS_OPTIONS } from '../lib/url-state.js';
-import { severityBadge, incidentDetail, thermalDetail } from './incident-detail.js';
+import { activityBadge, severityBadge, incidentDetail, thermalDetail } from './incident-detail.js';
 import { statusBadge } from './status-ui.js';
 import { DISCLAIMER } from './disclaimer.js';
 import { categoryIcon } from './category-style.js';
@@ -36,7 +36,7 @@ function itemHtml(item, i, catIndex, now) {
   return html`
     <li class="event-item">
       <button type="button" class="event-toggle" aria-expanded="false" data-cat="${catIndex}" data-item="${i}">
-        ${severityBadge(p)}
+        ${severityBadge(p)} ${activityBadge(p)}
         <span class="event-title">${p.title}</span>
         <span class="event-meta">
           ${relationText(item)}${t ? html` · <time datetime="${t}">${fmtAgo(t, now)}</time>` : ''}

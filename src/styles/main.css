@@ -818,6 +818,26 @@ body.has-selection .layout {
   border: 1px solid var(--border);
   white-space: nowrap;
 }
+/* Ongoing / ended as stated by the source (GDACS, EONET). */
+.activity-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 650;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+}
+.activity-badge.is-ongoing {
+  background: color-mix(in srgb, #2f9a5c 14%, var(--surface));
+  border-color: color-mix(in srgb, #2f9a5c 45%, var(--border));
+  color: color-mix(in srgb, #2f9a5c 70%, var(--text));
+}
+.activity-badge.is-ended {
+  background: var(--surface-2);
+  color: var(--muted);
+}
 .sev-dot {
   width: 10px;
   height: 10px;

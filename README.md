@@ -136,7 +136,7 @@ Production builds set `REQUIRE_LIVE_DATA=true`, so **sample fixtures can never b
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| `.github/workflows/refresh-data.yml` | cron `*/15 * * * *`, manual | Fetches *due* sources, writes data + metadata, pushes a snapshot to the `data` branch, then calls the deploy workflow. Skips the commit and deploy when nothing was due or the data is byte-identical. |
+| `.github/workflows/refresh-data.yml` | cron `7,22,37,52 * * * *`, manual, external timer | Fetches *due* sources, writes data + metadata, pushes a snapshot to the `data` branch, then calls the deploy workflow. Skips the commit and deploy when nothing was due or the data is byte-identical. |
 | `.github/workflows/deploy-pages.yml` | push to `main`, manual, called by refresh | Runs unit tests, copies the `data` branch into the build, builds with Vite, deploys to Pages. |
 | `.github/workflows/ci.yml` | pull requests, other branches | Unit tests, sample-data build, checks `data/fixtures` is up to date. |
 
@@ -149,6 +149,20 @@ Production builds set `REQUIRE_LIVE_DATA=true`, so **sample fixtures can never b
 - Output is sorted deterministically so unchanged data produces identical files.
 - The `data` branch is a **rolling snapshot** (a single force-pushed commit) by default, so frequently changing generated data — FIRMS tiles in particular — never bloats the repository history. Set the repository variable `DATA_BRANCH_MODE=history` to keep every snapshot as a normal commit instead.
 - The browser re-checks `manifest.json` every 10 minutes and recalculates source status from the current time, so data visibly ages into “stale” if updates stop.
+
+### Reliable timing with an external trigger
+
+GitHub's own schedule is best-effort and can be late or skip runs (a new schedule can also take a while to start). For dependable updates, let a free external cron service start the workflow through the GitHub API:
+
+1. Create a **fine-grained personal access token**: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained → *Generate new token*. Repository access: **only this repository**. Permissions: **Actions: Read and write** (nothing else). Set an expiry and note it.
+2. On [cron-job.org](https://cron-job.org) (free), create a job:
+   - URL: `https://api.github.com/repos/<owner>/<repo>/actions/workflows/refresh-data.yml/dispatches`
+   - Method: **POST**, schedule **every 10 or 15 minutes**
+   - Headers: `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`
+   - Body: `{"ref":"main"}`
+3. A successful call returns **HTTP 204**; the run appears under Actions as *workflow_dispatch*.
+
+Triggering often is safe for the data sources: each run only fetches sources that are *due* (USGS and NWS ≈ 15 min, GDACS ≈ 30 min, FIRMS and EONET ≈ 60 min), and a run with nothing due exits without committing or deploying. Overlapping triggers queue behind the running one (only one waits). The token can only start this repository's workflows; keep it private and renew it before it expires.
 
 Things to know about GitHub Actions:
 

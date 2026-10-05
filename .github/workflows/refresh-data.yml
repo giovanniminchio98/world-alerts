@@ -12,7 +12,10 @@ name: Refresh data
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # Off the busy :00/:15/:30/:45 marks, where GitHub delays or drops the most runs.
+    - cron: '7,22,37,52 * * * *'
+  # External timers (e.g. cron-job.org) can also start a run through the GitHub API:
+  # POST /repos/<owner>/<repo>/actions/workflows/refresh-data.yml/dispatches {"ref":"main"}
   workflow_dispatch:
     inputs:
       force:

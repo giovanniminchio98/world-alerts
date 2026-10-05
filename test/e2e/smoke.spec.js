@@ -210,3 +210,37 @@ test('events reach the map even when data arrives after the map is ready (slow n
   await page.waitForFunction(() => window.__gimMap?.data?.['gim-gdacs-points']?.features?.length > 0, null, { timeout: 15000 });
   await page.waitForFunction(() => window.__gimMap.map.querySourceFeatures('gim-gdacs-points').length > 0, null, { timeout: 15000 });
 });
+
+test('a swipe past the end of a popup does not move the page or map', async ({ page }) => {
+  await page.goto('./?w=7d#map=2/20/0');
+  await page.waitForFunction(() => window.__gimMap?.map?.queryRenderedFeatures().some((f) => ['gim-gdacs-icon', 'gim-eonet-icon'].includes(f.layer.id)));
+  const pt = await page.evaluate(() => {
+    const m = window.__gimMap.map;
+    const r = m.getContainer().getBoundingClientRect();
+    const f = m.queryRenderedFeatures().find((x) => ['gim-gdacs-icon', 'gim-eonet-icon'].includes(x.layer.id));
+    const q = m.project(f.geometry.coordinates);
+    return { x: r.left + q.x, y: r.top + q.y };
+  });
+  await page.mouse.click(pt.x, pt.y);
+  await expect(page.locator('.maplibregl-popup-content')).toBeVisible();
+  const blocked = await page.evaluate(() => {
+    const el = document.querySelector('.maplibregl-popup-content');
+    const swipe = (dy) => {
+      const r = el.getBoundingClientRect();
+      const t = (y) => new Touch({ identifier: 1, target: el, clientX: r.left + 20, clientY: y });
+      const y0 = r.top + r.height / 2;
+      el.dispatchEvent(new TouchEvent('touchstart', { touches: [t(y0)], bubbles: true, cancelable: true }));
+      const move = new TouchEvent('touchmove', { touches: [t(y0 + dy)], bubbles: true, cancelable: true });
+      el.dispatchEvent(move);
+      return move.defaultPrevented;
+    };
+    el.scrollTop = 0;
+    const pastTop = swipe(60);
+    const intoContent = swipe(-60);
+    el.scrollTop = el.scrollHeight;
+    const pastBottom = swipe(-60);
+    return { pastTop, intoContent, pastBottom };
+  });
+  // Past either end the swipe stops at the popup; scrolling its content still works.
+  expect(blocked).toEqual({ pastTop: true, intoContent: false, pastBottom: true });
+});

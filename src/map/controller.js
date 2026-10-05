@@ -7,6 +7,7 @@ import { loadCountries } from '../lib/countries.js';
 import { EARTH_RADIUS_KM } from '../shared/geo.js';
 import { prefersReducedMotion } from '../lib/dom.js';
 import { closeButtonElement } from '../ui/close-button.js';
+import { containTouchScroll } from '../ui/scroll-contain.js';
 
 /**
  * Basemaps from OpenFreeMap (https://openfreemap.org): OpenStreetMap-based
@@ -514,6 +515,7 @@ export class MapController {
       .setDOMContent(element)
       .addTo(this.map);
     const popup = this.currentPopup;
+    containTouchScroll(popup.getElement().querySelector('.maplibregl-popup-content'));
     close.addEventListener('click', () => popup.remove());
     close.focus({ preventScroll: true });
     return popup;

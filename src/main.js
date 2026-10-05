@@ -24,6 +24,7 @@ import { renderLocationCard } from './ui/location-card.js';
 import { incidentDetail, thermalDetail } from './ui/incident-detail.js';
 import { initSearch } from './ui/search.js';
 import { initChrome, toast } from './ui/chrome.js';
+import { containTouchScroll } from './ui/scroll-contain.js';
 import { earthquakesToMap, disastersToMap, naturalToMap, weatherToMap, fireSummaryToMap, fireDetailToMap } from './map/render-data.js';
 
 const SOURCE_FOR = { earthquake: 'usgs-earthquakes', disaster: 'gdacs-disasters', natural: 'eonet-events', weather: 'nws-alerts' };
@@ -504,6 +505,7 @@ function onFiltersChange(filters) {
 }
 
 function bindChrome() {
+  for (const el of ['#panel', '#location-panel', '#status-dialog']) containTouchScroll($(el));
   $('#btn-locate').addEventListener('click', locate);
   $('#window-chip').addEventListener('click', (e) => {
     e.stopPropagation();

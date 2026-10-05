@@ -353,7 +353,8 @@ export class MapController {
 
   setVisibility(category, visible) {
     this.visibility[category] = visible;
-    if (!this.map?.isStyleLoaded()) return;
+    if (!this.map) return;
+    // Layers that do not exist yet get this visibility when they are added (onStyleLoad).
     for (const id of CATEGORY_LAYERS[category] || []) {
       if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
     }

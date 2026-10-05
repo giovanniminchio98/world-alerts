@@ -174,3 +174,31 @@ test('time window chip on the map; choice is kept on reload, first visit is 24 h
   await expect(p2.locator('#window-chip')).toContainText('Last 24 hours');
   await fresh.close();
 });
+
+test('events reach the map even when data arrives after the map is ready (slow network)', async ({ page }) => {
+  // Basemap style answers at once, but its tiles stay slow — so the map reports
+  // "not fully loaded" while the (delayed) incident data arrives.
+  await page.unrouteAll();
+  await page.route(/tiles\.openfreemap\.org\/styles\//, (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        version: 8,
+        sources: { v: { type: 'vector', tiles: ['https://tiles.openfreemap.org/slow/{z}/{x}/{y}.pbf'], maxzoom: 14 } },
+        layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#dde' } }, { id: 'water', type: 'fill', source: 'v', 'source-layer': 'water' }],
+      }),
+    }),
+  );
+  await page.route(/tiles\.openfreemap\.org\/slow\//, async (route) => {
+    await new Promise((r) => setTimeout(r, 8000));
+    await route.abort();
+  });
+  await page.route(/\/data\/incidents\//, async (route) => {
+    await new Promise((r) => setTimeout(r, 2500));
+    await route.continue();
+  });
+  await page.route(/nominatim\.openstreetmap\.org/, (route) => route.abort());
+  await page.goto('./?w=7d');
+  await page.waitForFunction(() => window.__gimMap?.data?.['gim-gdacs-points']?.features?.length > 0, null, { timeout: 15000 });
+  await page.waitForFunction(() => window.__gimMap.map.querySourceFeatures('gim-gdacs-points').length > 0, null, { timeout: 15000 });
+});

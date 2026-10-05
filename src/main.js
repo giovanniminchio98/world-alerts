@@ -615,7 +615,14 @@ state.panel = new Panel($('#tab-layers'), {
 if (state.firesIndex) state.panel.setSensors(state.firesIndex.sensors);
 if (state.filters.layers.thermal) ensureFiresBase();
 await mapReady;
-if (state.map?.map?.isStyleLoaded()) pushMapData();
+// Hand the data to the map now. Do not wait for map.isStyleLoaded(): it stays
+// false while basemap tiles are still downloading, and the map's own "ready"
+// callback may already have fired before the data arrived — the map would then
+// stay empty until a filter changed. setData() stores the data if the map's
+// layers are not added yet, and they pick it up when they are.
+pushMapData();
+// Test hook (automated browsers only): lets end-to-end tests inspect map layers.
+if (navigator.webdriver) window.__gimMap = state.map;
 if (url.selection) selectLocation({ ...url.selection, source: 'url', focusCard: false }, { fly: !url.view });
 
 setInterval(() => {

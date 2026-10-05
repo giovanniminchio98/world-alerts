@@ -947,7 +947,8 @@ body.has-selection .layout {
   background: color-mix(in srgb, var(--cat) 7%, var(--surface));
 }
 .cat-row.state-not-connected,
-.cat-row.state-coverage-unavailable {
+.cat-row.state-coverage-unavailable,
+.cat-row.state-layer-off {
   background: var(--surface-2);
 }
 .cat-row.state-source-unavailable {
@@ -998,6 +999,7 @@ body.has-selection .layout {
 }
 .state-none .cat-headline,
 .state-coverage-unavailable .cat-headline,
+.state-layer-off .cat-headline,
 .state-not-connected .cat-headline {
   color: var(--muted);
 }

@@ -212,6 +212,12 @@ export function buildLocationReport({
       categories.push(row);
       continue;
     }
+    if (category === 'weather' && filters.layers?.weather === false) {
+      row.state = 'layer-off';
+      row.headline = 'Layer turned off — switch on “Weather alerts” in Layers & filters to include NWS alerts here.';
+      categories.push(row);
+      continue;
+    }
     const data = category === 'thermal' ? thermal : datasets[category];
     if ((desc.status === 'failed' && !desc.hasData) || loadErrors[category] || data == null) {
       row.state = 'source-unavailable';

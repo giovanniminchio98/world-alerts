@@ -8,7 +8,7 @@ import { NATURAL_TYPES } from '../shared/severity.js';
 export const DEFAULT_FILTERS = {
   window: '24h',
   // Satellite heat spots are numerous and mostly not wildfires: off on the map by default.
-  layers: { earthquake: true, disaster: true, natural: true, thermal: false, weather: true },
+  layers: { earthquake: true, disaster: true, natural: true, thermal: false, weather: false },
   earthquake: { minMag: 0, depth: 'all', significantOnly: false },
   disaster: { levels: ['Red', 'Orange', 'Green', 'none'], types: ['EQ', 'TC', 'FL', 'VO', 'DR', 'WF', 'TS'] },
   natural: { types: Object.keys(NATURAL_TYPES) },

@@ -43,9 +43,15 @@ test('a place without nearby events uses neutral empty-result language', async (
   await expect(page.locator('#location-panel')).not.toContainText(/\bsafe\b/i);
 });
 
-test('US location inside an NWS alert and changing the radius', async ({ page }) => {
+test('US location inside an NWS alert and changing the radius', async ({ page, isMobile }) => {
   await page.goto('./?lat=29.76&lon=-95.37&place=Houston&cc=US');
   const card = page.locator('#location-panel');
+  // US weather alerts are off by default; the card says how to include them.
+  await expect(card).toContainText('Layer turned off');
+  await expect(card).not.toContainText('Flood Warning');
+  if (isMobile) await page.click('#btn-layers');
+  await page.locator('[data-layer="weather"]').dispatchEvent('click');
+  if (isMobile) await page.click('#panel-close');
   await expect(card.locator('.cat-expand').first()).toBeVisible();
   await expect(card).toContainText('Flood Warning');
   await expect(card).toContainText('inside the area published by the source');
@@ -67,6 +73,7 @@ test('layer toggles and filters', async ({ page, isMobile }) => {
   await page.goto('./');
   if (isMobile) await page.click('#btn-layers');
   await expect(page.locator('#panel-title')).toHaveText('Layers & filters');
+  await expect(page.locator('[data-layer="weather"]')).not.toBeChecked(); // US weather alerts are opt-in
   const eq = page.locator('[data-layer="earthquake"]');
   await expect(eq).toBeChecked();
   await eq.dispatchEvent('click');
@@ -142,6 +149,7 @@ test('works offline after a place is saved', async ({ page, context, isMobile })
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.goto('./?lat=29.76&lon=-95.37&place=Houston&cc=US');
   await expect(page.locator('#location-panel .summary-box')).toBeVisible();
+  await page.locator('[data-layer="weather"]').dispatchEvent('click'); // US weather alerts are opt-in
   await page.click('[data-action="save"]');
   await expect(page.locator('[data-action="save"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#saved-places')).toContainText('Houston');

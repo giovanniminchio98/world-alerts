@@ -32,6 +32,7 @@ const okSources = sourcesConfig.sources.map((s) => ({
 function report(selection, { filters = DEFAULT_FILTERS, sources = okSources, extra = {} } = {}) {
   return buildLocationReport({ selection: { radiusKm: 100, ...selection }, datasets, thermal, sources, filters, now: NOW, ...extra });
 }
+const WX_ON = mergeFilters({ layers: { weather: true } });
 const cat = (r, c) => r.categories.find((x) => x.category === c);
 const BANNED = /\b(safe|no danger|no problems?|everything is normal|all clear)\b/i;
 const allText = (r) => JSON.stringify([r.summaryLines, r.categories.map((c) => [c.headline, c.freshness, c.note])]);
@@ -70,8 +71,15 @@ describe('location report scenarios', () => {
     expect(r.summaryLines.join(' ')).toMatch(/not necessarily wildfires/);
   });
 
+  it('US weather alerts are off by default and the card says how to turn them on', () => {
+    const wx = cat(report({ lon: -95.37, lat: 29.76, countryCode: 'US' }), 'weather');
+    expect(wx.state).toBe('layer-off');
+    expect(wx.items).toEqual([]);
+    expect(wx.headline).toMatch(/turned off/);
+  });
+
   it('a US location inside an active NWS alert (Houston)', () => {
-    const r = report({ lon: -95.37, lat: 29.76, countryCode: 'US' });
+    const r = report({ lon: -95.37, lat: 29.76, countryCode: 'US' }, { filters: WX_ON });
     const wx = cat(r, 'weather');
     expect(wx.state).toBe('found');
     expect(wx.items[0].relation).toBe('inside-area');
@@ -79,7 +87,7 @@ describe('location report scenarios', () => {
   });
 
   it('a zone-based NWS alert matches by containment (Phoenix)', () => {
-    const wx = cat(report({ lon: -112.07, lat: 33.45, countryCode: 'US' }), 'weather');
+    const wx = cat(report({ lon: -112.07, lat: 33.45, countryCode: 'US' }, { filters: WX_ON }), 'weather');
     expect(wx.items.map((i) => i.feature.properties.attributes.event)).toEqual(['Heat Advisory']);
     expect(wx.headline).toBe('1 alert covering this location: Heat Advisory');
   });

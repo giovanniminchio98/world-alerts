@@ -56,7 +56,7 @@ Map features:
 - A **time-window chip** at the top of the map shows the active window (Last hour / 24 hours / 48 hours / 7 days) and changes it; the choice is remembered in this browser (first visit: 24 hours).
 - Events are shown only if the source reports them active inside the selected time window (an event whose latest episode ended before the window is hidden).
 - FIRMS satellite heat spots are **off on the map by default** (they are numerous and mostly not wildfires); when switched on they default to high-confidence detections, aggregated into a 1° grid at low zoom and loaded as 10° tiles when zoomed in. Location cards still report nearby high-confidence heat spots. Named wildfires come from GDACS and NASA EONET.
-- NWS warning polygons / zone outlines with transparent fills.
+- NWS warning polygons / zone outlines with transparent fills. This layer is **off by default** (switch it on under Layers & filters); while it is off, the location card says so instead of listing NWS alerts.
 - Filters: time window (1 h / 24 h / 48 h / 7 days), magnitude, depth, significant-only, GDACS level and hazard type, FIRMS confidence and sensor, NWS severity.
 - **Location Status card** with radius (25–500 km, default 100 km), per-category results, distance and compass direction, source status, and coverage notes. Shareable via URL.
 - **Emergency numbers** for the selected country (police / ambulance / fire, tap to call), compiled from Wikipedia's list of emergency telephone numbers and shown with a "confirm locally" note.

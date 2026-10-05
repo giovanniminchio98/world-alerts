@@ -38,7 +38,8 @@ const state = {
   datasets: { earthquake: null, disaster: null, natural: null, weather: null },
   loadErrors: {},
   byId: new Map(),
-  filters: mergeFilters(load('filters-v2', null)),
+  // v3 turned US weather alerts off by default; from older settings keep only the time window.
+  filters: mergeFilters(load('filters-v3', null) ?? { window: load('filters-v2', null)?.window }),
   selection: null,
   fires: null,
   firesIndex: null,
@@ -496,7 +497,7 @@ function onFiltersChange(filters) {
   const windowChanged = filters.window !== state.filters.window;
   state.filters = filters;
   renderWindowChip();
-  save('filters-v2', { ...filters, window: filters.window });
+  save('filters-v3', { ...filters, window: filters.window });
   pushMapData();
   if (state.selection) refreshCard();
   if (windowChanged) writeUrl();

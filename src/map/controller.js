@@ -195,15 +195,17 @@ export class MapController {
       m.addLayer({ id: `gim-${src}-area-fill`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-color': ['get', 'hcolor'], 'fill-opacity': 0.16 } }, below);
       m.addLayer({ id: `gim-${src}-area-pattern`, type: 'fill', source: `gim-${src}-areas`, paint: { 'fill-pattern': pattern, 'fill-opacity': 0.9 } }, below);
       m.addLayer({ id: `gim-${src}-area-line`, type: 'line', source: `gim-${src}-areas`, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 1.6, 'line-dasharray': [3, 2] } }, below);
-      m.addLayer({ id: `gim-${src}-track`, type: 'line', source: `gim-${src}-tracks`, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 2.4, 'line-dasharray': [1, 1.5] } }, below);
+      // Tracks and their arrows appear from regional zoom, to keep the world view clean.
+      m.addLayer({ id: `gim-${src}-track`, type: 'line', source: `gim-${src}-tracks`, minzoom: 2.5, paint: { 'line-color': ['get', 'hcolor'], 'line-width': 2.4, 'line-dasharray': [1, 1.5] } }, below);
       // Arrows along a storm's path show its direction of travel (towards the latest position).
       m.addLayer({
         id: `gim-${src}-track-arrows`,
         type: 'symbol',
         source: `gim-${src}-tracks`,
+        minzoom: 2.5,
         layout: {
           'symbol-placement': 'line',
-          'symbol-spacing': ['interpolate', ['linear'], ['zoom'], 1, 40, 6, 90],
+          'symbol-spacing': 160,
           'icon-image': 'track-arrow',
           'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.6, 6, 0.95],
           'icon-rotation-alignment': 'map',

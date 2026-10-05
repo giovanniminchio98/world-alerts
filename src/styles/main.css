@@ -1847,3 +1847,67 @@ html {
 .saved-places {
   scroll-margin-top: 64px;
 }
+
+/* Time-window chip at the top of the map. */
+.window-chip-wrap {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 6;
+}
+.window-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0.35rem 0.75rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.window-chip[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+.window-menu {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  min-width: 11rem;
+}
+.window-menu[hidden] {
+  display: none;
+}
+.window-menu button {
+  font: inherit;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  min-height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.window-menu button:hover {
+  background: var(--surface-2);
+}
+.window-menu button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+/* The basemap notice moves below the chip. */
+.map-note {
+  top: 58px !important;
+}

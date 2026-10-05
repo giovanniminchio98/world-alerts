@@ -472,9 +472,30 @@ function closeDrawerOnMobile() {
   }
 }
 
+/** The time window shown on the map, with a small menu to change it. */
+function renderWindowChip() {
+  $('#window-chip .window-chip-label').textContent = TIME_WINDOWS[state.filters.window]?.label || 'Last 24 hours';
+  for (const b of document.querySelectorAll('#window-menu [data-window]')) b.setAttribute('aria-pressed', String(b.dataset.window === state.filters.window));
+}
+
+function toggleWindowMenu(open) {
+  const menu = $('#window-menu');
+  const show = open ?? menu.hidden;
+  menu.hidden = !show;
+  $('#window-chip').setAttribute('aria-expanded', String(show));
+}
+
+function setWindow(w) {
+  toggleWindowMenu(false);
+  if (w === state.filters.window) return;
+  state.panel?.setWindow(w);
+  onFiltersChange({ ...structuredClone(state.filters), window: w });
+}
+
 function onFiltersChange(filters) {
   const windowChanged = filters.window !== state.filters.window;
   state.filters = filters;
+  renderWindowChip();
   save('filters-v2', { ...filters, window: filters.window });
   pushMapData();
   if (state.selection) refreshCard();
@@ -483,6 +504,14 @@ function onFiltersChange(filters) {
 
 function bindChrome() {
   $('#btn-locate').addEventListener('click', locate);
+  $('#window-chip').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleWindowMenu();
+  });
+  for (const b of document.querySelectorAll('#window-menu [data-window]')) b.addEventListener('click', () => setWindow(b.dataset.window));
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.window-chip-wrap')) toggleWindowMenu(false);
+  });
   $('#btn-saved').addEventListener('click', () => {
     // Open the menu on phones, then bring the Saved places list into view.
     if (isMobile() && !document.body.classList.contains('panel-open')) $('#btn-layers').click();
@@ -518,6 +547,7 @@ function bindChrome() {
   });
   window.addEventListener('resize', debounce(syncMapPadding, 200));
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') toggleWindowMenu(false);
     if (e.key === 'Escape' && document.body.classList.contains('panel-open')) $('#panel-close').click();
   });
   initSearch({
@@ -561,6 +591,7 @@ async function pollManifest() {
 
 registerServiceWorker();
 bindChrome();
+renderWindowChip();
 renderSaved();
 const updateConnectivity = watchConnectivity($('#offline-banner'), () =>
   `You're offline — showing data saved on this device${state.manifest?.generatedAtUtc ? ` (last published update ${fmtTime(state.manifest.generatedAtUtc)})` : ''}. It will not update until you reconnect.`,

@@ -77,6 +77,18 @@
 
       <section class="map-wrap" aria-label="Map">
         <div id="map" class="map" role="region" aria-label="Interactive incident map. Click or tap anywhere to check the status around that point."></div>
+        <div class="window-chip-wrap">
+          <button type="button" id="window-chip" class="window-chip" aria-haspopup="true" aria-expanded="false" aria-controls="window-menu" title="Change the time window">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <span class="window-chip-label">Last 24 hours</span><span aria-hidden="true" class="chev">▾</span>
+          </button>
+          <div id="window-menu" class="window-menu" role="group" aria-label="Time window" hidden>
+            <button type="button" data-window="1h" aria-pressed="false">Last hour</button>
+            <button type="button" data-window="24h" aria-pressed="true">Last 24 hours</button>
+            <button type="button" data-window="48h" aria-pressed="false">Last 48 hours</button>
+            <button type="button" data-window="7d" aria-pressed="false">Last 7 days</button>
+          </div>
+        </div>
         <div class="map-tools">
           <button type="button" id="btn-reset" class="tool-btn" aria-label="Reset map to world view" title="Reset to world view">🌐</button>
           <button type="button" id="btn-centre" class="tool-btn" aria-label="Check status at the centre of the map" title="Check the map centre">⊕</button>

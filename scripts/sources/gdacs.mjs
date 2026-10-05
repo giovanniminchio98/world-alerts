@@ -12,6 +12,7 @@ import { parseUtc, toIsoUtc } from '../../src/shared/time.js';
 import { geometryBbox, mergePolygons, round, simplifyGeometry } from '../../src/shared/geo.js';
 import { GDACS_POINT_HAZARDS, GDACS_TYPES, gdacsColorHint } from '../../src/shared/severity.js';
 import { mapLimit } from '../lib/http.js';
+import { joinSegments, unionPolygons } from '../lib/geometry-ops.js';
 
 export const key = 'gdacs-disasters';
 const API = 'https://www.gdacs.org/gdacsapi/api';
@@ -356,15 +357,15 @@ function enrich(incident, geometries) {
   const geo = geometries?.[geometryKey(type, id, p.attributes.episodeId ?? '')];
   if (!geo) return incident;
   if (!p.affectedGeometry && geo.polygons?.length) {
-    p.affectedGeometry = mergePolygons(geo.polygons.map(simplifyBySize).filter(Boolean));
+    // One clean outline per event (cyclones arrive as dozens of overlapping circles).
+    const merged = unionPolygons(geo.polygons);
+    p.affectedGeometry = merged ? simplifyBySize(merged) : null;
     if (!GDACS_POINT_HAZARDS.has(type)) {
       p.locationPrecision = 'area';
       p.disclaimer = 'GDACS is an alert and coordination source; assessments can change as events evolve.';
     }
   }
-  if (!p.attributes.track && geo.lines?.length) {
-    p.attributes.track = { type: 'MultiLineString', coordinates: geo.lines.flatMap((l) => (l.type === 'LineString' ? [l.coordinates] : l.coordinates)) };
-  }
+  if (!p.attributes.track && geo.lines?.length) p.attributes.track = joinSegments(geo.lines);
   return incident;
 }
 

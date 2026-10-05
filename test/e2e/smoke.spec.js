@@ -156,3 +156,21 @@ test('works offline after a place is saved', async ({ page, context, isMobile })
   await expect(card.locator('.emergency a[href="tel:911"]')).toBeVisible();
   await context.setOffline(false);
 });
+
+test('time window chip on the map; choice is kept on reload, first visit is 24 h', async ({ page, context }) => {
+  await page.goto('./');
+  const chip = page.locator('#window-chip');
+  await expect(chip).toContainText('Last 24 hours');
+  await chip.click();
+  await page.click('#window-menu [data-window="7d"]');
+  await expect(chip).toContainText('Last 7 days');
+  await expect(page.locator('#window-menu')).toBeHidden();
+  await page.reload();
+  await expect(page.locator('#window-chip')).toContainText('Last 7 days');
+  // A brand-new visitor (no stored choice, plain URL) starts at 24 hours.
+  const fresh = await context.browser().newContext();
+  const p2 = await fresh.newPage();
+  await p2.goto(new URL('./', page.url()).href.split('?')[0]);
+  await expect(p2.locator('#window-chip')).toContainText('Last 24 hours');
+  await fresh.close();
+});

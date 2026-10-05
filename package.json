@@ -13,6 +13,7 @@
     "refresh": "node scripts/refresh.mjs",
     "refresh:force": "node scripts/refresh.mjs --force",
     "fixtures": "node scripts/build-fixtures.mjs",
+    "icons": "node scripts/build-icons.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

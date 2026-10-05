@@ -117,6 +117,7 @@ npm run preview              # serve dist/
 npm test                     # unit tests (Vitest)
 npm run test:e2e             # Playwright smoke tests (desktop + mobile, sample data)
 npm run fixtures             # regenerate data/fixtures/
+npm run icons                # re-render favicon.svg and the PNG app icons from assets/app-icon.svg
 DATA_SOURCE=fixtures SIMULATE=gdacs-disasters=failed,nws-alerts=stale npm run dev
                              # sample data with simulated failed/stale sources (states: failed, stale, nodata)
 ```

@@ -251,10 +251,8 @@ body.app > .layout {
 .brand-mark {
   width: 28px;
   height: 28px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 68% 34%, #e8711a 0 18%, transparent 19%),
-    repeating-linear-gradient(0deg, transparent 0 8px, rgb(255 255 255 / 25%) 8px 9px), #16324f;
-  border: 2px solid var(--surface-3);
+  border-radius: 22%;
+  background: #16324f url('../../assets/app-icon.svg') center / cover no-repeat;
 }
 .brand-text {
   display: flex;

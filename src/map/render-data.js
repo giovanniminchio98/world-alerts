@@ -2,6 +2,7 @@
 import { hazardColor, hazardOf, nwsHazard } from './hazards.js';
 import { fireColorKey } from '../lib/colors.js';
 import { summaryCellCount, thermalRowMatches } from '../lib/filters.js';
+import { unwrapGeometry } from '../shared/geo.js';
 
 const fc = (features) => ({ type: 'FeatureCollection', features });
 
@@ -50,8 +51,9 @@ function eventsToMap(features, ring) {
         hasArea: Boolean(p.affectedGeometry),
       },
     });
-    if (p.affectedGeometry) areas.push({ type: 'Feature', geometry: p.affectedGeometry, properties: { fid: p.id, hazard, hcolor } });
-    if (p.attributes?.track) tracks.push({ type: 'Feature', geometry: p.attributes.track, properties: { fid: p.id, hazard, hcolor } });
+    // Unwrap at the antimeridian so a path or area crossing 180° is not drawn around the world.
+    if (p.affectedGeometry) areas.push({ type: 'Feature', geometry: unwrapGeometry(p.affectedGeometry), properties: { fid: p.id, hazard, hcolor } });
+    if (p.attributes?.track) tracks.push({ type: 'Feature', geometry: unwrapGeometry(p.attributes.track), properties: { fid: p.id, hazard, hcolor } });
   }
   return { points: fc(points), areas: fc(areas), tracks: fc(tracks) };
 }
@@ -65,7 +67,7 @@ export function weatherToMap(features) {
       const hazard = nwsHazard(f.properties.attributes?.event);
       const props = { fid: f.properties.id, color: f.properties.severity.colorHint || 'gray' };
       if (hazard) Object.assign(props, { hazard, hcolor: hazardColor(hazard) });
-      return { type: 'Feature', geometry: f.geometry, properties: props };
+      return { type: 'Feature', geometry: unwrapGeometry(f.geometry), properties: props };
     }),
   );
 }

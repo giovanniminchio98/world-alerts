@@ -7,7 +7,7 @@
 
 import { makeIncident, sortIncidents } from '../../src/shared/schema.js';
 import { parseUtc, toIsoUtc } from '../../src/shared/time.js';
-import { geometryBbox, round, simplifyGeometry } from '../../src/shared/geo.js';
+import { geometryBbox, round, simplifyGeometry, unwrapLongitudes } from '../../src/shared/geo.js';
 import { NATURAL_TYPES } from '../../src/shared/severity.js';
 
 export const key = 'eonet-events';
@@ -61,7 +61,7 @@ export function normalize(raw, ctx) {
     if (!coords) continue;
 
     // Storms and other moving events: keep the path of reported positions as a track.
-    const path = points.map((g) => [round(g.coordinates[0], 3), round(g.coordinates[1], 3)]);
+    const path = unwrapLongitudes(points.map((g) => [round(g.coordinates[0], 3), round(g.coordinates[1], 3)]));
     const moved = new Set(path.map((c) => c.join(','))).size > 1;
     const track = moved ? { type: 'LineString', coordinates: path } : null;
     const precision = affected ? 'area' : POINT_HAZARDS.has(cat) ? 'exact' : 'representative';

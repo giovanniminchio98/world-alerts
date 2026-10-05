@@ -266,3 +266,38 @@ export function mergePolygons(geometries) {
   if (polys.length === 1) return { type: 'Polygon', coordinates: polys[0] };
   return { type: 'MultiPolygon', coordinates: polys };
 }
+
+/**
+ * Make a line or ring continuous across the antimeridian: each longitude is
+ * shifted by ±360° so consecutive points are never more than 180° apart.
+ * (179.3°E after 179.2°W becomes −180.7°, i.e. a short hop, not a line across
+ * the whole world.) Map renderers draw longitudes beyond ±180 on the next world copy.
+ */
+export function unwrapLongitudes(coords) {
+  if (!coords?.length) return coords;
+  const out = [coords[0].slice()];
+  for (let i = 1; i < coords.length; i++) {
+    const prev = out[i - 1][0];
+    let lon = coords[i][0];
+    while (lon - prev > 180) lon -= 360;
+    while (lon - prev < -180) lon += 360;
+    out.push([lon, ...coords[i].slice(1)]);
+  }
+  return out;
+}
+
+/** unwrapLongitudes applied to every line / ring of a geometry. */
+export function unwrapGeometry(g) {
+  if (!g) return g;
+  switch (g.type) {
+    case 'LineString':
+      return { type: 'LineString', coordinates: unwrapLongitudes(g.coordinates) };
+    case 'MultiLineString':
+    case 'Polygon':
+      return { type: g.type, coordinates: g.coordinates.map(unwrapLongitudes) };
+    case 'MultiPolygon':
+      return { type: 'MultiPolygon', coordinates: g.coordinates.map((p) => p.map(unwrapLongitudes)) };
+    default:
+      return g;
+  }
+}

@@ -119,3 +119,17 @@ describe('misc helpers', () => {
     expect(s.length).toBeLessThan(line.length);
   });
 });
+
+import { unwrapGeometry, unwrapLongitudes } from '../src/shared/geo.js';
+
+describe('antimeridian', () => {
+  it('keeps a path crossing 180° continuous instead of spanning the world', () => {
+    // Hurricane Nolo: −179.2° then 179.3° is a 1.5° hop westward, not 358.5° east.
+    expect(unwrapLongitudes([[-178, 23], [-179.2, 24], [179.3, 24.8], [178, 25]])).toEqual([[-178, 23], [-179.2, 24], [-180.7, 24.8], [-182, 25]]);
+    expect(unwrapLongitudes([[10, 0], [20, 0]])).toEqual([[10, 0], [20, 0]]);
+  });
+  it('unwraps every ring of polygons', () => {
+    const g = unwrapGeometry({ type: 'Polygon', coordinates: [[[179, 0], [-179, 0], [-179, 1], [179, 1], [179, 0]]] });
+    for (let i = 1; i < g.coordinates[0].length; i++) expect(Math.abs(g.coordinates[0][i][0] - g.coordinates[0][i - 1][0])).toBeLessThanOrEqual(180);
+  });
+});

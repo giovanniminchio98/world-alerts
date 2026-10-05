@@ -1,6 +1,6 @@
 // Geometry clean-up for published areas and tracks (build time only).
 import polygonClipping from 'polygon-clipping';
-import { mergePolygons } from '../../src/shared/geo.js';
+import { mergePolygons, unwrapGeometry } from '../../src/shared/geo.js';
 
 const polygonsOf = (g) => (g?.type === 'Polygon' ? [g.coordinates] : g?.type === 'MultiPolygon' ? g.coordinates : []);
 
@@ -60,5 +60,5 @@ export function joinSegments(lines) {
   for (const seg of segments) if (!used.has(seg) && !ends.has(keyOf(seg[0]))) walk(seg);
   for (const seg of segments) if (!used.has(seg)) walk(seg);
   chains.sort((a, b) => b.length - a.length);
-  return chains.length === 1 ? { type: 'LineString', coordinates: chains[0] } : { type: 'MultiLineString', coordinates: chains };
+  return unwrapGeometry(chains.length === 1 ? { type: 'LineString', coordinates: chains[0] } : { type: 'MultiLineString', coordinates: chains });
 }

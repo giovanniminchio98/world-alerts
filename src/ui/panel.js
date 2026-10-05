@@ -182,7 +182,15 @@ export class Panel {
       <fieldset class="checks"><legend>NWS severity</legend>
         ${NWS_SEVERITIES.map((s) => html`<label class="check"><input type="checkbox" data-filter="wx-sev" value="${s}" ${checked(f.weather.severities.includes(s))}> ${s}</label>`)}
       </fieldset>
-      <p class="muted small">United States and territories only. Zone-based alerts use simplified outlines.</p>`;
+      <ul class="legend" aria-label="Weather alert colours">
+        ${legendSwatch(HINT_COLORS.red, 'Extreme')}
+        ${legendSwatch(HINT_COLORS.orange, 'Severe — e.g. Extreme Heat Warning')}
+        ${legendSwatch(HINT_COLORS.yellow, 'Moderate — e.g. Heat Advisory')}
+        ${legendSwatch(HINT_COLORS.blue, 'Minor')}
+      </ul>
+      <p class="muted small">Fill colour is the NWS severity; the texture shows the hazard type:</p>
+      ${hazardLegend(['heat', 'storm', 'flood', 'wildfire', 'snow'])}
+      <p class="muted small">United States and territories only. Zone-based alerts use simplified outlines. Heat alerts are forecasts of high temperatures, not fires.</p>`;
   }
 
   sensorsHtml() {

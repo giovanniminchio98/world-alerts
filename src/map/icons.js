@@ -234,6 +234,19 @@ const PATTERNS = {
       ctx.stroke();
     }
   },
+  // Wavy vertical heat-shimmer lines (heat alerts), so they are not mistaken for fire dots.
+  haze(ctx, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.4;
+    ctx.lineCap = 'round';
+    for (const x of [6, 18]) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.bezierCurveTo(x + 3, 4, x - 3, 8, x, 12);
+      ctx.bezierCurveTo(x + 3, 16, x - 3, 20, x, 24);
+      ctx.stroke();
+    }
+  },
   dots(ctx, color) {
     ctx.fillStyle = color;
     for (const [x, y] of [[6, 6], [18, 18]]) {

@@ -14,7 +14,7 @@ export const HAZARDS = {
   landslide: { label: 'Landslide', color: '#7c5a3a', pattern: 'zigzag' },
   dust: { label: 'Dust and haze', color: '#a8865a', pattern: 'dots' },
   snow: { label: 'Snow / winter', color: '#5b9bd5', pattern: 'dots' },
-  heat: { label: 'Temperature extreme', color: '#d9480f', pattern: 'dots' },
+  heat: { label: 'Heat / temperature extreme', color: '#d9480f', pattern: 'haze' },
   other: { label: 'Other event', color: '#5f6977', pattern: 'dots' },
 };
 

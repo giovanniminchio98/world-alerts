@@ -22,8 +22,8 @@ export const CATEGORY_ORDER = [
   { category: 'earthquake', sourceKey: 'usgs-earthquakes' },
   { category: 'disaster', sourceKey: 'gdacs-disasters' },
   { category: 'natural', sourceKey: 'eonet-events' },
-  { category: 'thermal', sourceKey: 'firms-hotspots' },
   { category: 'weather', sourceKey: 'nws-alerts' },
+  { category: 'thermal', sourceKey: 'firms-hotspots' },
   { category: 'internet', sourceKey: 'internet-outages' },
   { category: 'power', sourceKey: 'power-outages' },
   { category: 'aviation', sourceKey: 'airport-disruptions' },
@@ -83,12 +83,15 @@ function matchDisasters(fc, sel, filters, now, matcher = disasterMatches) {
     if (!matcher(p, filters, now)) continue;
     const base = pointItem(f, origin);
     const area = p.affectedGeometry;
-    if (hasAreaGeometry(area) && geometryContainsPoint(area, origin)) {
+    const hasArea = hasAreaGeometry(area);
+    if (hasArea && geometryContainsPoint(area, origin)) {
       items.push({ ...base, relation: 'inside-area', order: 0 });
     } else if (p.locationPrecision === 'exact' && base.km <= sel.radiusKm) {
       items.push({ ...base, relation: 'nearby', order: 1 });
-    } else if (hasAreaGeometry(area) && approxDistanceToGeometryKm(area, sel.lon, sel.lat) <= sel.radiusKm) {
-      items.push({ ...base, relation: 'near-area', edgeKm: approxDistanceToGeometryKm(area, sel.lon, sel.lat), order: 2 });
+    } else if (hasArea) {
+      // A published area is more specific than the country list, so it alone decides.
+      const edgeKm = approxDistanceToGeometryKm(area, sel.lon, sel.lat);
+      if (edgeKm <= sel.radiusKm) items.push({ ...base, relation: 'near-area', edgeKm, order: 2 });
     } else if (p.locationPrecision !== 'exact' && base.km <= sel.radiusKm) {
       items.push({ ...base, relation: 'representative', order: 2 });
     } else if (sel.countryCode && p.countryCodes?.includes(sel.countryCode.toUpperCase())) {
@@ -96,6 +99,13 @@ function matchDisasters(fc, sel, filters, now, matcher = disasterMatches) {
     }
   }
   return items.sort((a, b) => a.order - b.order || a.km - b.km);
+}
+
+/** e.g. "2 alerts covering this location: Extreme Heat Warning, Heat Advisory" — names the hazard up front. */
+function weatherHeadline(items) {
+  const names = [...new Set(items.map((i) => i.feature.properties.attributes?.event).filter(Boolean))];
+  const head = `${plural(items.length, 'alert')} covering this location`;
+  return names.length ? `${head}: ${names.join(', ')}` : head;
 }
 
 function matchWeather(fc, sel, filters, now) {
@@ -227,7 +237,7 @@ export function buildLocationReport({
       else if (category === 'weather') row.items = matchWeather(data, selection, filters, now);
       if (row.items.length) {
         row.state = 'found';
-        row.headline = `${plural(row.items.length, 'relevant event')} found`;
+        row.headline = category === 'weather' ? weatherHeadline(row.items) : `${plural(row.items.length, 'relevant event')} found`;
         incidentCount += row.items.length;
         highCount += row.items.filter((i) => i.high).length;
       }

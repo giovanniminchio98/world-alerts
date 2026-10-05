@@ -81,6 +81,7 @@ describe('location report scenarios', () => {
   it('a zone-based NWS alert matches by containment (Phoenix)', () => {
     const wx = cat(report({ lon: -112.07, lat: 33.45, countryCode: 'US' }), 'weather');
     expect(wx.items.map((i) => i.feature.properties.attributes.event)).toEqual(['Heat Advisory']);
+    expect(wx.headline).toBe('1 alert covering this location: Heat Advisory');
   });
 
   it('weather coverage is unavailable outside the United States', () => {
@@ -97,13 +98,38 @@ describe('location report scenarios', () => {
   });
 
   it('GDACS country-level and representative matches carry no fake precision', () => {
-    // Chittagong is >100 km from the Bangladesh flood's representative point.
+    // Chittagong is >100 km outside the Bangladesh flood's published extent, so the country list alone does not match it.
     const r = report({ lon: 91.83, lat: 22.36, countryCode: 'BD' });
-    const fl = cat(r, 'disaster').items.find((i) => i.feature.properties.subtype === 'FL');
-    expect(fl.relation).toBe('country');
+    expect(cat(r, 'disaster').items.find((i) => i.feature.properties.subtype === 'FL')).toBeUndefined();
+    // Without a published extent the country list is the only hint, so it still counts.
+    const noArea = structuredClone(datasets.disaster);
+    for (const f of noArea.features) delete f.properties.affectedGeometry;
+    const country = buildLocationReport({
+      selection: { radiusKm: 100, lon: 91.83, lat: 22.36, countryCode: 'BD' },
+      datasets: { ...datasets, disaster: noArea }, thermal, sources: okSources, filters: DEFAULT_FILTERS, now: NOW,
+    });
+    expect(cat(country, 'disaster').items.find((i) => i.feature.properties.subtype === 'FL').relation).toBe('country');
     // Dhaka lies inside the flood extent fetched from the GDACS geometry endpoint.
     const near = report({ lon: 90.41, lat: 23.81, countryCode: 'BD' });
     expect(cat(near, 'disaster').items[0].relation).toBe('inside-area');
+  });
+
+  it('does not list a distant event with a published area just because the country matches', () => {
+    // A cyclone near Guam lists "US" among its countries but its area is nowhere near California.
+    const cyclone = structuredClone(datasets.disaster.features.find((f) => f.properties.affectedGeometry));
+    Object.assign(cyclone.properties, {
+      id: 'tc-test', countryCodes: ['GU', 'US'], locationPrecision: 'representative',
+      affectedGeometry: { type: 'Polygon', coordinates: [[[143, 12], [147, 12], [147, 15], [143, 15], [143, 12]]] },
+    });
+    cyclone.geometry = { type: 'Point', coordinates: [144.8, 13.4] };
+    const fc = { ...datasets.disaster, features: [...datasets.disaster.features, cyclone] };
+    const run = (lon, lat) => buildLocationReport({
+      selection: { radiusKm: 100, lon, lat, countryCode: 'US' },
+      datasets: { ...datasets, disaster: fc }, thermal, sources: okSources, filters: DEFAULT_FILTERS, now: NOW,
+    });
+    const ids = (r) => cat(r, 'disaster').items.map((i) => i.feature.properties.id);
+    expect(ids(run(-119.79, 36.74))).not.toContain('tc-test');
+    expect(ids(run(144.79, 13.44))).toContain('tc-test');
   });
 
   it('respects the selected radius and filters', () => {

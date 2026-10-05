@@ -218,6 +218,12 @@ body.app {
   flex-direction: column;
   overflow: hidden;
 }
+/* The app page itself never scrolls: stop iOS from bouncing the whole page when an inner
+   scroll (popup, card, panel) reaches its end. */
+html.app-root,
+body.app {
+  overscroll-behavior: none;
+}
 body.app > .topbar,
 body.app > .banner,
 body.app > .status-strip {
@@ -302,6 +308,7 @@ body.app > .layout {
   box-shadow: var(--shadow);
   max-height: min(60vh, 420px);
   overflow: auto;
+  overscroll-behavior: contain;
   z-index: 50;
 }
 .search-opt {
@@ -391,6 +398,7 @@ body.has-selection .layout {
   background: var(--surface);
   border-right: 1px solid var(--border);
   overflow-y: auto;
+  overscroll-behavior: contain;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -860,6 +868,7 @@ body.has-selection .layout {
   background: var(--surface);
   border-left: 1px solid var(--border);
   overflow-y: auto;
+  overscroll-behavior: contain;
   min-height: 0;
 }
 .location-panel[hidden] {
@@ -1106,6 +1115,7 @@ body.has-selection .layout {
 .status-dialog {
   width: min(92vw, 520px);
   max-height: 85dvh;
+  overscroll-behavior: contain;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);

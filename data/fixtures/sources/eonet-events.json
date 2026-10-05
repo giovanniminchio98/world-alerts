@@ -15,7 +15,7 @@
   "docsUrl": "https://eonet.gsfc.nasa.gov/docs/v3",
   "refreshIntervalMinutes": 60,
   "staleAfterMinutes": 180,
-  "scheduleDescription": "Scheduled approximately every 60 minutes via GitHub Actions. Actual workflow start may be delayed.",
+  "scheduleDescription": "Checked approximately every 60 minutes (external timer plus a GitHub Actions schedule as backup). Actual run times may be delayed.",
   "provides": "Open natural events curated by NASA from other agencies — wildfires, severe storms, volcanoes, floods, landslides, dust and haze, snow and temperature extremes — with a link to the original source.",
   "coverage": "Global, but limited to events that NASA EONET curators have catalogued; many smaller events are not included.",
   "coverageLimitations": "EONET is a curated catalogue, not a warning service: events can be added or closed with a delay, and it assigns no severity level. Storms are shown at their latest reported position. Earthquakes are excluded here because USGS is used directly; sea and lake ice events are excluded as not place-relevant. Some events overlap with GDACS.",

@@ -36,11 +36,11 @@ The site never says a place is “safe”. When nothing is found it says: *“No
 
 | Layer | Source | Coverage | Scheduled refresh (best effort) | Marked stale after |
 | --- | --- | --- | --- | --- |
-| Earthquakes | [USGS](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php) “all earthquakes, past 7 days” GeoJSON feed | Global | ≈ every 15 min | 45 min |
-| Major disasters | [GDACS](https://www.gdacs.org/) event list (JSON SEARCH → EVENTS4APP → MAP, GeoRSS fallback) + per-event affected-area geometry | Global (major events only) | ≈ every 30 min | 90 min |
+| Earthquakes | [USGS](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php) “all earthquakes, past 7 days” GeoJSON feed | Global | ≈ every 10 min | 45 min |
+| Major disasters | [GDACS](https://www.gdacs.org/) event list (JSON SEARCH → EVENTS4APP → MAP, GeoRSS fallback) + per-event affected-area geometry | Global (major events only) | ≈ every 20 min | 90 min |
 | Satellite thermal detections | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) VIIRS + MODIS, past 7 days | Global land | ≈ every 60 min | 180 min |
 | Natural events | [NASA EONET](https://eonet.gsfc.nasa.gov/docs/v3) open events (wildfires, storms, volcanoes, floods, …) | Global (curated) | ≈ every 60 min | 180 min |
-| Weather alerts | [U.S. National Weather Service](https://www.weather.gov/documentation/services-web-api) active alerts | **United States & territories only** | ≈ every 15 min | 90 min |
+| Weather alerts | [U.S. National Weather Service](https://www.weather.gov/documentation/services-web-api) active alerts | **United States & territories only** | ≈ every 10 min | 90 min |
 | Internet disruptions | *not connected* (e.g. Cloudflare Radar) | — | — | — |
 | Electricity outages | *not connected* (regional provider plugins) | — | — | — |
 | Airport / airspace | *not connected* (e.g. FAA NAS status) | — | — | — |
@@ -138,13 +138,13 @@ Production builds set `REQUIRE_LIVE_DATA=true`, so **sample fixtures can never b
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| `.github/workflows/refresh-data.yml` | cron `7,22,37,52 * * * *`, manual, external timer | Fetches *due* sources, writes data + metadata, pushes a snapshot to the `data` branch, then calls the deploy workflow. Skips the commit and deploy when nothing was due or the data is byte-identical. |
+| `.github/workflows/refresh-data.yml` | external timer every 10 min (cron-job.org), hourly cron `37 * * * *` as backup, manual | Fetches *due* sources, writes data + metadata, pushes a snapshot to the `data` branch, then calls the deploy workflow. Skips the commit and deploy when nothing was due or the data is byte-identical. |
 | `.github/workflows/deploy-pages.yml` | push to `main`, manual, called by refresh | Runs unit tests, copies the `data` branch into the build, builds with Vite, deploys to Pages. |
 | `.github/workflows/ci.yml` | pull requests, other branches | Unit tests, sample-data build, checks `data/fixtures` is up to date. |
 
 ## How the refresh works
 
-- The workflow runs on a 15-minute cron, but **each source has its own interval** in `config/sources.json`; `scripts/refresh.mjs` only fetches sources whose last attempt is older than that interval (minus 4 minutes of tolerance for cron jitter).
+- An external timer starts the workflow every 10 minutes (GitHub's own hourly cron is a backup), but **each source has its own interval** in `config/sources.json`; `scripts/refresh.mjs` only fetches sources whose last attempt is older than that interval (minus 4 minutes of tolerance for cron jitter).
 - **GitHub Actions scheduled workflows are not guaranteed to start on time.** They are often delayed, especially at busy times (the top of the hour is busiest), and runs can occasionally be dropped. The UI therefore never says “updated every 15 minutes exactly”; it shows the actual recorded timestamps and the wording *“Refreshes are scheduled at intervals, but actual update timing depends on source availability and GitHub Actions scheduling.”*
 - Every fetch has a timeout, retries with exponential backoff for network errors / HTTP 429 / 5xx, and an identifying User-Agent (NWS requires one).
 - Normalised output is validated (schema, geometry, timestamps, URLs, duplicate ids, minimum record counts). **If fetching or validation fails, the previous files are left untouched** and only the metadata records the failed attempt and error. Tiled FIRMS output is written to a staging directory and swapped in atomically.
@@ -159,17 +159,17 @@ GitHub's own schedule is best-effort and can be late or skip runs (a new schedul
 1. Create a **fine-grained personal access token**: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained → *Generate new token*. Repository access: **only this repository**. Permissions: **Actions: Read and write** (nothing else). Set an expiry and note it.
 2. On [cron-job.org](https://cron-job.org) (free), create a job:
    - URL: `https://api.github.com/repos/<owner>/<repo>/actions/workflows/refresh-data.yml/dispatches`
-   - Method: **POST**, schedule **every 10 or 15 minutes**
+   - Method: **POST**, schedule **every 10 minutes** (matches the shortest source interval)
    - Headers: `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`
    - Body: `{"ref":"main"}`
 3. A successful call returns **HTTP 204**; the run appears under Actions as *workflow_dispatch*.
 
-Triggering often is safe for the data sources: each run only fetches sources that are *due* (USGS and NWS ≈ 15 min, GDACS ≈ 30 min, FIRMS and EONET ≈ 60 min), and a run with nothing due exits without committing or deploying. Overlapping triggers queue behind the running one (only one waits). The token can only start this repository's workflows; keep it private and renew it before it expires.
+Triggering often is safe for the data sources: each run only fetches sources that are *due* (USGS and NWS ≈ 10 min, GDACS ≈ 20 min, FIRMS and EONET ≈ 60 min). Keep the timer interval equal to the shortest source interval: a source is due once its last attempt is older than its interval minus 4 minutes, so a 15-minute source with a 10-minute timer would only refresh every 20 minutes, and a run with nothing due exits without committing or deploying. Overlapping triggers queue behind the running one (only one waits). The token can only start this repository's workflows; keep it private and renew it before it expires.
 
 Things to know about GitHub Actions:
 
 - In public repositories, **scheduled workflows are automatically disabled after 60 days without repository activity**. Re-enable them from the Actions tab (or push a commit) if updates stop.
-- In private repositories, a 15-minute schedule uses roughly 3,000–6,000 Actions minutes per month, which exceeds the free allowance on most plans. Reduce the cron frequency if needed.
+- In private repositories, a 10-minute timer uses roughly 4,000–9,000 Actions minutes per month, which exceeds the free allowance on most plans. Reduce the cron frequency if needed.
 
 ## Secrets and configuration
 

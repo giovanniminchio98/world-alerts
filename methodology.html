@@ -53,7 +53,7 @@
 
       <h2 id="collection">How data is collected and normalised</h2>
       <ol>
-        <li>A GitHub Actions workflow runs on a schedule (approximately every 15 minutes) and decides which sources are due: USGS ≈ every 15 min, NWS ≈ 15 min, GDACS ≈ 30 min, FIRMS ≈ 60 min.</li>
+        <li>A GitHub Actions workflow is started by a timer (approximately every 10 minutes) and decides which sources are due: USGS ≈ every 10 min, NWS ≈ 10 min, GDACS ≈ 20 min, FIRMS and EONET ≈ 60 min. Timers can be late, so the site always shows the actual fetch times.</li>
         <li>Each due source is fetched with timeouts, retries and an identifying User-Agent. Keys (for example an optional NASA FIRMS MAP_KEY) exist only as GitHub Actions secrets and are never sent to browsers.</li>
         <li>Responses are converted to one common incident schema (title, category, severity, geometry, event time, source-update time, fetch time, countries, attributes, caveats, source link) and validated.</li>
         <li><strong>If a fetch or validation fails, the previous valid data is kept</strong> and only the failed attempt is recorded. An error never replaces a known valid feed with an empty list.</li>

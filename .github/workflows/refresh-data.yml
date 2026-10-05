@@ -5,15 +5,17 @@
 # and publish timestamps recorded by this workflow, never an assumed schedule.
 #
 # Every run checks which sources are *due* (see config/sources.json):
-#   USGS ≈ 15 min · NWS ≈ 15 min · GDACS ≈ 30 min · NASA FIRMS ≈ 60 min
+#   USGS ≈ 10 min · NWS ≈ 10 min · GDACS ≈ 20 min · NASA FIRMS / EONET ≈ 60 min
+# The main timer is an external cron (cron-job.org) calling the dispatch API every
+# 10 minutes; the GitHub schedule below is an hourly backup in case it stops.
 # The latest data is stored as a snapshot on the `data` branch so a failed
 # fetch can always fall back to the last valid files.
 name: Refresh data
 
 on:
   schedule:
-    # Off the busy :00/:15/:30/:45 marks, where GitHub delays or drops the most runs.
-    - cron: '7,22,37,52 * * * *'
+    # Hourly backup, off the busy top of the hour where GitHub delays or drops the most runs.
+    - cron: '37 * * * *'
   # External timers (e.g. cron-job.org) can also start a run through the GitHub API:
   # POST /repos/<owner>/<repo>/actions/workflows/refresh-data.yml/dispatches {"ref":"main"}
   workflow_dispatch:

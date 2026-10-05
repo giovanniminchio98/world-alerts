@@ -15,7 +15,7 @@
   "docsUrl": "https://www.earthdata.nasa.gov/data/tools/firms/faq",
   "refreshIntervalMinutes": 60,
   "staleAfterMinutes": 180,
-  "scheduleDescription": "Scheduled approximately every 60 minutes via GitHub Actions. Actual workflow start may be delayed.",
+  "scheduleDescription": "Checked approximately every 60 minutes (external timer plus a GitHub Actions schedule as backup). Actual run times may be delayed.",
   "provides": "Near-real-time satellite active-fire / thermal hotspot detections (MODIS and VIIRS) for the past 7 days, with detection time, sensor, confidence and fire radiative power.",
   "coverage": "Global land areas observed by the satellites. Each location is observed only a few times per day.",
   "coverageLimitations": "Detections are thermal anomalies, not confirmed wildfires: they can include agricultural burning, industrial heat sources, gas flares, volcanic activity or other hot surfaces. Clouds, smoke and satellite overpass timing cause gaps. Near-real-time data is typically available within about 3 hours of observation, but this varies by product.",

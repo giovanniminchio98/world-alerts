@@ -41,7 +41,7 @@ export function describeSourceStatus(meta, now = Date.now()) {
 
 /**
  * True when the published site build (manifest.generatedAtUtc) is older than
- * expected. The most frequent source refreshes every ~15 minutes, so an update
+ * expected. The most frequent source refreshes every ~10 minutes, so an update
  * older than `thresholdMinutes` suggests scheduled runs are delayed or failing.
  */
 export function isPublishOlderThanExpected(manifest, now = Date.now(), thresholdMinutes = 120) {

@@ -64,10 +64,14 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Job-level so it also applies when this workflow is called by "Refresh data".
+    # A newer deploy always carries newer data, so it replaces an older one that is
+    # still waiting or running instead of queueing behind it (a deploy stuck in
+    # "queued" would otherwise block every later one).
     concurrency:
       group: pages
-      cancel-in-progress: false
+      cancel-in-progress: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

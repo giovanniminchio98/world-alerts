@@ -29,10 +29,6 @@ on:
         type: string
         default: ''
 
-concurrency:
-  group: refresh-data
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -40,6 +36,12 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Only the fetch step is serialised (two refreshes must not write the data branch at
+    # once). The deploy has its own queue, so a deploy that GitHub leaves stuck in
+    # "queued" can no longer hold up every later refresh, as happened on 5 Oct.
+    concurrency:
+      group: refresh-data
+      cancel-in-progress: false
     permissions:
       contents: write # push the `data` snapshot branch
     outputs:

@@ -1,7 +1,7 @@
 // Convert normalised incidents (already filtered) into flat GeoJSON for map rendering.
 import { hazardColor, hazardOf, nwsHazard } from './hazards.js';
 import { fireColorKey } from '../lib/colors.js';
-import { summaryCellCount, thermalRowMatches } from '../lib/filters.js';
+import { activityState, summaryCellCount, thermalRowMatches } from '../lib/filters.js';
 import { unwrapGeometry } from '../shared/geo.js';
 
 const fc = (features) => ({ type: 'FeatureCollection', features });
@@ -29,10 +29,11 @@ export function earthquakesToMap(features) {
 /**
  * GDACS / EONET events → icon points, affected-area polygons and tracks, each
  * carrying its hazard key and colour. `ring` is the icon ring colour hint (the
- * GDACS alert level as published; EONET has none). `ended` marks events the
- * source no longer lists as current; they are drawn faded and underneath.
+ * GDACS alert level as published; EONET has none). `ended` marks events that are
+ * not ongoing (closed by the source, or no update for a day); they are drawn
+ * faded and underneath.
  */
-function eventsToMap(features, ring) {
+function eventsToMap(features, ring, now) {
   const points = [];
   const areas = [];
   const tracks = [];
@@ -40,7 +41,7 @@ function eventsToMap(features, ring) {
     const p = f.properties;
     const hazard = hazardOf(p.subtype);
     const hcolor = hazardColor(hazard);
-    const ended = isEnded(p);
+    const ended = activityState(p, now) !== 'ongoing';
     points.push({
       type: 'Feature',
       geometry: f.geometry,
@@ -62,11 +63,8 @@ function eventsToMap(features, ring) {
   return { points: fc(points.sort(endedFirst)), areas: fc(areas.sort(endedFirst)), tracks: fc(tracks.sort(endedFirst)) };
 }
 
-/** True when the source says the event is over (GDACS no longer current, EONET closed). */
-export const isEnded = (p) => p.status === 'past';
-
-export const disastersToMap = (features) => eventsToMap(features, (p) => p.severity.colorHint || 'gray');
-export const naturalToMap = (features) => eventsToMap(features, () => 'natural');
+export const disastersToMap = (features, now = Date.now()) => eventsToMap(features, (p) => p.severity.colorHint || 'gray', now);
+export const naturalToMap = (features, now = Date.now()) => eventsToMap(features, () => 'natural', now);
 
 export function weatherToMap(features) {
   return fc(

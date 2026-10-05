@@ -116,11 +116,11 @@ function pushMapData() {
   const eq = earthquakesToMap(filtered('earthquake'));
   m.setData('gim-eq-major', eq.major);
   m.setData('gim-eq-minor', eq.minor);
-  const gd = disastersToMap(filtered('disaster'));
+  const gd = disastersToMap(filtered('disaster'), Date.now());
   m.setData('gim-gdacs-points', gd.points);
   m.setData('gim-gdacs-areas', gd.areas);
   m.setData('gim-gdacs-tracks', gd.tracks);
-  const ne = naturalToMap(filtered('natural'));
+  const ne = naturalToMap(filtered('natural'), Date.now());
   m.setData('gim-eonet-points', ne.points);
   m.setData('gim-eonet-areas', ne.areas);
   m.setData('gim-eonet-tracks', ne.tracks);

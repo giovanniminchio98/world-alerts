@@ -36,7 +36,7 @@ function itemHtml(item, i, catIndex, now) {
   return html`
     <li class="event-item">
       <button type="button" class="event-toggle" aria-expanded="false" data-cat="${catIndex}" data-item="${i}">
-        ${severityBadge(p)} ${activityBadge(p)}
+        ${severityBadge(p)} ${activityBadge(p, now)}
         <span class="event-title">${p.title}</span>
         <span class="event-meta">
           ${relationText(item)}${t ? html` · <time datetime="${t}">${fmtAgo(t, now)}</time>` : ''}

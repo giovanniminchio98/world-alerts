@@ -153,7 +153,7 @@ export class Panel {
           ${Object.entries(GDACS_TYPES).map(([k, t]) => html`<label class="check"><input type="checkbox" data-filter="gd-type" value="${k}" ${checked(f.disaster.types.includes(k))}><img src="${iconDataUrl(k)}" alt="" width="18" height="18"> ${t}</label>`)}
         </fieldset>
         ${hazardLegend(Object.keys(GDACS_TYPES))}
-        <p class="muted small">Icon colour and area texture show the hazard type; the ring colour is the GDACS alert level (green / orange / red). Textured areas are affected areas published by GDACS. A soft glow means only a representative location is known — the affected area may be broader. <strong>Faded with a grey ring</strong> = GDACS no longer lists the event as current; it is still shown while it falls inside the selected time window.</p>`;
+        <p class="muted small">Icon colour and area texture show the hazard type; the ring colour is the GDACS alert level (green / orange / red). Textured areas are affected areas published by GDACS. A soft glow means only a representative location is known — the affected area may be broader. <strong>Faded with a grey ring</strong> = not ongoing: GDACS has closed the event, or has not updated it in the last 24 h. Such events still show while they fall inside the selected time window (48 h / 7 days).</p>`;
     }
     if (category === 'natural') {
       return html`
@@ -161,7 +161,7 @@ export class Panel {
           ${Object.entries(NATURAL_TYPES).map(([k, t]) => html`<label class="check"><input type="checkbox" data-filter="eo-type" value="${k}" ${checked(f.natural.types.includes(k))}><img src="${iconDataUrl(k)}" alt="" width="18" height="18"> ${t}</label>`)}
         </fieldset>
         ${hazardLegend(Object.keys(NATURAL_TYPES))}
-        <p class="muted small">Teal ring. EONET curates events from other agencies and gives no severity level. Storms show their latest position and their path; textured areas are affected areas when published, a soft glow marks a point location. Only events EONET lists as open are shown.</p>`;
+        <p class="muted small">Teal ring. EONET curates events from other agencies and gives no severity level. Storms show their latest position and their path; textured areas are affected areas when published, a soft glow marks a point location. Only events EONET lists as open are shown; those without a new report in the last 24 h are faded.</p>`;
     }
     if (category === 'thermal') {
       return html`

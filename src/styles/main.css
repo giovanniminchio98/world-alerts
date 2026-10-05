@@ -834,7 +834,8 @@ body.has-selection .layout {
   border-color: color-mix(in srgb, #2f9a5c 45%, var(--border));
   color: color-mix(in srgb, #2f9a5c 70%, var(--text));
 }
-.activity-badge.is-ended {
+.activity-badge.is-ended,
+.activity-badge.is-quiet {
   background: var(--surface-2);
   color: var(--muted);
 }

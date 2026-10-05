@@ -4,6 +4,7 @@ import { fmtAgo, fmtCoords, fmtRelPos, fmtTime, countryName } from '../lib/forma
 import { earthquakeBandLabel } from '../shared/severity.js';
 import { iconDataUrl } from '../map/icons.js';
 import { colorFor } from '../lib/colors.js';
+import { activityState, lastActivityMs, ONGOING_HOURS } from '../lib/filters.js';
 
 const FIRMS_DOCS = 'https://www.earthdata.nasa.gov/data/tools/firms/faq';
 
@@ -19,20 +20,29 @@ export function severityBadge(p) {
 
 const SOURCE_NAMES = { disaster: 'GDACS', natural: 'NASA EONET' };
 
-/** "Ongoing" / "Ended" as stated by the source (GDACS current flag, EONET open/closed). */
-export function activityBadge(p) {
-  if (!SOURCE_NAMES[p.category] || !p.status) return '';
-  const ended = p.status === 'past';
-  return html`<span class="activity-badge ${ended ? 'is-ended' : 'is-ongoing'}">${ended ? 'Ended' : 'Ongoing'}</span>`;
+const ACTIVITY_LABELS = { ongoing: 'Ongoing', quiet: 'No recent update', ended: 'Ended' };
+
+// Earthquakes happen at one moment: "ongoing" does not fit them, so they get no badge
+// (they still fade on the map once they are more than a day old).
+const hasActivity = (p) => Boolean(SOURCE_NAMES[p.category]) && p.subtype !== 'EQ';
+
+/** Ongoing / No recent update / Ended — see activityState(). */
+export function activityBadge(p, now = Date.now()) {
+  if (!hasActivity(p)) return '';
+  const state = activityState(p, now);
+  return html`<span class="activity-badge is-${state}">${ACTIVITY_LABELS[state]}</span>`;
 }
 
 function activityRow(p, now) {
+  if (!hasActivity(p)) return '';
   const src = SOURCE_NAMES[p.category];
-  if (!src || !p.status) return '';
   const what = p.category === 'natural' ? 'open' : 'current';
-  if (p.status !== 'past') return row('Status', `Ongoing — ${src} still lists this event as ${what}`);
-  const last = p.sourceUpdatedUtc ? ` (last update ${fmtAgo(p.sourceUpdatedUtc, now)})` : '';
-  return row('Status', `Ended — ${src} no longer lists this event as ${what}${last}`);
+  const state = activityState(p, now);
+  const last = lastActivityMs(p);
+  const ago = last != null ? fmtAgo(new Date(last).toISOString(), now) : null;
+  if (state === 'ended') return row('Status', `Ended — ${src} no longer lists this event as ${what}${ago ? ` (latest activity ${ago})` : ''}`);
+  if (state === 'quiet') return row('Status', `No recent update — ${src} still lists this event as ${what}, but its latest ${p.category === 'natural' ? 'report' : 'assessment'} is ${ago ? `from ${ago}` : 'more than a day old'}. It may be easing or over.`);
+  return row('Status', `Ongoing — ${src} lists this event as ${what} and updated it in the last ${ONGOING_HOURS} h`);
 }
 
 function relativeLine(p, origin, geometry) {
@@ -150,7 +160,7 @@ export function incidentDetail(feature, { now = Date.now(), origin = null, onChe
       <div>
         <p class="detail-kicker">${categoryKicker(p)}</p>
         <h3 class="detail-title">${p.title}</h3>
-        ${severityBadge(p)} ${activityBadge(p)}
+        ${severityBadge(p)} ${activityBadge(p, now)}
       </div>
     </header>
     <dl class="kv-list">${body}</dl>

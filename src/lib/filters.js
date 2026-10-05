@@ -62,6 +62,24 @@ export function lastActivityMs(p) {
   return parseUtc(p.eventEndUtc) ?? parseUtc(p.sourceUpdatedUtc) ?? parseUtc(p.eventStartUtc);
 }
 
+/** An event counts as ongoing only if the source updated it within this many hours. */
+export const ONGOING_HOURS = 24;
+
+/**
+ * 'ended'  – the source has closed the event (GDACS no longer current, EONET closed);
+ * 'quiet'  – still listed by the source, but its latest assessment / update is more
+ *            than ONGOING_HOURS old (GDACS keeps events "current" for days after
+ *            activity stops, so the flag alone is not enough);
+ * 'ongoing' otherwise. Uses the same activity time as the time-window filter, so
+ * everything in the 24 h view is ongoing unless the source closed it.
+ */
+export function activityState(p, now = Date.now()) {
+  if (p.status === 'past') return 'ended';
+  const last = lastActivityMs(p);
+  if (last != null && last < now - ONGOING_HOURS * 3_600_000) return 'quiet';
+  return 'ongoing';
+}
+
 /**
  * GDACS events match when they were active inside the selected window: an
  * event whose latest episode ended before the window starts is not shown, even

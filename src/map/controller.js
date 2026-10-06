@@ -516,9 +516,33 @@ export class MapController {
       .addTo(this.map);
     const popup = this.currentPopup;
     containTouchScroll(popup.getElement().querySelector('.maplibregl-popup-content'));
+    // Near the top or bottom of the world the map cannot move the event to the lower
+    // part of the screen, so once the camera settles the popup opens on the side with
+    // room and is never taller than that room (it scrolls inside instead).
+    const fit = () => this.fitPopup(popup, lngLat);
+    this.map.once('moveend', fit);
+    fit();
     close.addEventListener('click', () => popup.remove());
     close.focus({ preventScroll: true });
     return popup;
+  }
+
+  fitPopup(popup, lngLat) {
+    if (!popup.isOpen()) return;
+    const content = popup.getElement()?.querySelector('.maplibregl-popup-content');
+    if (!content) return;
+    const height = this.map.getContainer().clientHeight;
+    const y = this.map.project(lngLat).y;
+    const room = 22; // tip + margin
+    const above = y - room;
+    const below = height - y - room;
+    const cssMax = Math.min(window.innerHeight * 0.5, 420);
+    const anchor = above >= Math.min(cssMax, 240) || above >= below ? 'bottom' : 'top';
+    if (popup.options.anchor !== anchor) {
+      popup.options.anchor = anchor;
+      popup.setLngLat(lngLat); // re-place with the new anchor
+    }
+    content.style.maxHeight = `${Math.max(140, Math.min(cssMax, anchor === 'bottom' ? above : below))}px`;
   }
 
   closePopup() {

@@ -5,7 +5,8 @@ import { earthquakeBandLabel } from '../shared/severity.js';
 import { iconDataUrl } from '../map/icons.js';
 import { colorFor } from '../lib/colors.js';
 import { activityState, lastActivityMs, ONGOING_HOURS } from '../lib/filters.js';
-import { hazardColor, hazardOf } from '../map/hazards.js';
+import { hazardColor, hazardOf, nwsHazard } from '../map/hazards.js';
+import { burnedAreaScale, confidenceSteps, droughtAreaScale, eonetMagnitudeScale, gdacsLevelSteps, magnitudeScale, nwsSeveritySteps, windScale } from './scales.js';
 import { parseUtc } from '../shared/time.js';
 
 const FIRMS_DOCS = 'https://www.earthdata.nasa.gov/data/tools/firms/faq';
@@ -48,28 +49,26 @@ function activityRow(p, now) {
   return row('Status', `Ongoing — ${src} lists this event as current, and its latest assessment covers the last ${ONGOING_HOURS} h`);
 }
 
-const ENDED_TIMELINE = '#8a94a3';
-
 /**
  * Start → end as a small vertical bar filled with the share of the period already
- * elapsed, in the hazard colour (grey when not ongoing). For GDACS the end is the
- * end of its latest assessment period, not a promise that the event ends then.
- * Returns '' when there is no real period (e.g. an earthquake, an open EONET event).
+ * elapsed, in the hazard colour (faded when not ongoing, still showing e.g. 100%).
+ * For GDACS the end is the end of its latest assessment period, not a promise that
+ * the event ends then. Returns '' when there is no real period (an earthquake, an
+ * open EONET event).
  */
-function timelineHtml(p, now, endLabel) {
+function timelineHtml(p, now, { startLabel = 'Start', endLabel, color, faded = false }) {
   const start = parseUtc(p.eventStartUtc);
   const end = parseUtc(p.eventEndUtc);
   if (start == null || end == null || end <= start) return '';
   const pct = Math.round(Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100)));
-  const color = activityState(p, now) === 'ongoing' ? hazardColor(hazardOf(p.subtype)) : ENDED_TIMELINE;
   const remaining = end > now ? `ends ${fmtAgo(p.eventEndUtc, now)}` : `period ended ${fmtAgo(p.eventEndUtc, now)}`;
   const startedNote = start > now ? ` · starts ${fmtAgo(p.eventStartUtc, now)}` : '';
   return html`<div class="kv kv-timeline">
     <dt class="visually-hidden">Timeline</dt>
-    <dd class="timeline" style="--tl-color:${color};--tl-pct:${pct}%">
+    <dd class="timeline ${faded ? 'is-faded' : ''}" style="--tl-color:${color};--tl-pct:${pct}%">
       <span class="tl-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Share of the period elapsed"><span class="tl-fill"></span></span>
       <span class="tl-rows">
-        <span class="tl-point"><span class="tl-label">Start</span>${timeHtml(p.eventStartUtc, now)}</span>
+        <span class="tl-point"><span class="tl-label">${startLabel}</span>${timeHtml(p.eventStartUtc, now)}</span>
         <span class="tl-progress"><strong>${pct}% elapsed</strong> <span class="muted">· ${remaining}${startedNote}</span></span>
         <span class="tl-point"><span class="tl-label">${endLabel}</span>${timeHtml(p.eventEndUtc, now)}</span>
       </span>
@@ -89,7 +88,7 @@ function earthquakeBody(f, now, origin) {
   const a = p.attributes || {};
   const [lon, lat] = f.geometry.coordinates;
   return html`
-    ${row('Magnitude', `${p.severity.label}${a.magType ? ` (${a.magType})` : ''} · ${earthquakeBandLabel(p.severity.numeric)}`)}
+    ${magnitudeScale(p.severity.numeric, a.magType) || row('Magnitude', `${p.severity.label} · ${earthquakeBandLabel(p.severity.numeric)}`)}
     ${row('Event time', timeHtml(p.eventStartUtc, now))}
     ${row('Depth', a.depthKm == null ? null : `${a.depthKm} km`)}
     ${row('Location', `${p.regionText || ''} · ${fmtCoords(lon, lat)}`)}
@@ -103,11 +102,25 @@ function earthquakeBody(f, now, origin) {
   `;
 }
 
+/** The GDACS severity number on a familiar scale, when the hazard has one. */
+function gdacsSeverityScale(type, a) {
+  const v = Number(a.severityValue);
+  if (type === 'EQ') return magnitudeScale(v);
+  if (type === 'TC' && a.severityUnit === 'km/h') return windScale(v);
+  if (type === 'WF' && a.severityUnit === 'ha') return burnedAreaScale(v);
+  if (type === 'DR' && a.severityUnit === 'km2') return droughtAreaScale(v);
+  return '';
+}
+
 function disasterBody(f, now, origin) {
   const p = f.properties;
   const a = p.attributes || {};
   const countries = (p.countryCodes || []).map(countryName).join(', ') || p.regionText;
-  const timeline = timelineHtml(p, now, 'Latest assessment covers until');
+  const timeline = timelineHtml(p, now, {
+    endLabel: 'Latest assessment covers until',
+    color: hazardColor(hazardOf(p.subtype)),
+    faded: activityState(p, now) !== 'ongoing',
+  });
   // GDACS sometimes reports a "last modified" date older than the event itself (a reused
   // record); such a date says nothing about this event, so it is not shown.
   const modified = parseUtc(p.sourceUpdatedUtc);
@@ -115,7 +128,8 @@ function disasterBody(f, now, origin) {
   const showModified = !(modified != null && started != null && modified < started);
   return html`
     ${row('Hazard', a.hazardLabel)}
-    ${row('GDACS alert level', a.alertLevel ? `${a.alertLevel}${a.alertScore != null ? ` (score ${a.alertScore})` : ''}` : 'Not supplied by source')}
+    ${gdacsLevelSteps(a.alertLevel, a.alertScore) || row('GDACS alert level', a.alertLevel || 'Not supplied by source')}
+    ${gdacsSeverityScale(p.subtype, a)}
     ${row('Severity (source)', a.severityText)}
     ${row('Population (source)', a.populationText)}
     ${timeline || html`${row('Start', timeHtml(p.eventStartUtc, now))}${p.eventEndUtc !== p.eventStartUtc ? row('Latest assessment covers until', timeHtml(p.eventEndUtc, now)) : ''}`}
@@ -135,7 +149,7 @@ function naturalBody(f, now, origin) {
   const others = (a.originalSources || []).slice(1).filter((s) => safeUrl(s.url));
   return html`
     ${row('Event type', a.eventLabel)}
-    ${row('Size / strength (source)', a.magnitude)}
+    ${eonetMagnitudeScale(a.magnitude) || row('Size / strength (source)', a.magnitude)}
     ${row('First reported', timeHtml(p.eventStartUtc, now))}
     ${row('Latest update', timeHtml(p.sourceUpdatedUtc, now))}
     ${activityRow(p, now)}
@@ -148,15 +162,20 @@ function naturalBody(f, now, origin) {
 function weatherBody(f, now) {
   const p = f.properties;
   const a = p.attributes || {};
+  const hazard = nwsHazard(a.event);
+  const timeline = timelineHtml(p, now, {
+    startLabel: a.onsetUtc ? 'Onset' : 'Effective',
+    endLabel: a.endsUtc ? 'Ends' : 'Expires',
+    color: hazard ? hazardColor(hazard) : colorFor(p.severity?.colorHint),
+  });
   return html`
     ${row('Alert', a.event)}
-    ${row('Severity', a.severity)}
+    ${nwsSeveritySteps(a.severity) || row('Severity', a.severity)}
     ${row('Urgency', a.urgency)}
     ${row('Certainty', a.certainty)}
+    ${timeline || html`${row('Onset', timeHtml(a.onsetUtc, now))}${row('Ends', timeHtml(a.endsUtc ?? a.expiresUtc, now))}`}
     ${row('Effective', timeHtml(a.effectiveUtc, now))}
-    ${row('Onset', timeHtml(a.onsetUtc, now))}
-    ${row('Expires', timeHtml(a.expiresUtc, now))}
-    ${row('Ends', timeHtml(a.endsUtc, now))}
+    ${a.expiresUtc && a.expiresUtc !== p.eventEndUtc ? row('Expires (this message)', timeHtml(a.expiresUtc, now)) : ''}
     ${row('Areas', p.regionText)}
     ${row('Issued by', a.senderName)}
     ${row('Issued', timeHtml(p.sourceUpdatedUtc, now))}
@@ -237,7 +256,7 @@ export function thermalDetail(d, { now = Date.now(), origin = null, onCheckLocat
     <dl class="kv-list">
       ${row('Detected', timeHtml(iso, now))}
       ${row('Sensor', d.sensor)}
-      ${row('Confidence', d.confidenceLabel)}
+      ${confidenceSteps(d.confidenceLabel) || row('Confidence', d.confidenceLabel)}
       ${row('Fire radiative power', d.frp == null ? null : `${d.frp} MW`)}
       ${row('Brightness temperature', d.brightness == null ? null : `${d.brightness} K`)}
       ${row('Day / night', d.dayNight)}

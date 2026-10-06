@@ -268,3 +268,15 @@ test('event details show a start → end timeline with the share elapsed', async
   await expect(timeline).toContainText(/\d+% elapsed/);
   await expect(timeline.locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', /^\d+$/);
 });
+
+test('earthquake details show the magnitude on a 0–10 scale', async ({ page }) => {
+  await page.goto('./?lat=23.99&lon=121.6&place=Hualien&cc=TW');
+  const row = page.locator('#location-panel .cat-row[data-cat="earthquake"]');
+  await expect(row).toBeVisible();
+  const expand = row.locator('.cat-expand');
+  if ((await expand.getAttribute('aria-expanded')) !== 'true') await expand.click();
+  await row.locator('.event-toggle').first().click();
+  const scale = row.locator('.kv-scale').first();
+  await expect(scale).toContainText(/M \d\.\d/);
+  await expect(scale).toContainText('on a 0–10 scale');
+});

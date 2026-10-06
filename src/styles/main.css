@@ -920,6 +920,82 @@ body.has-selection .layout {
 .tl-progress strong {
   color: var(--tl-color);
 }
+/* Events that are not ongoing keep their colour and percentage, faded. */
+.timeline.is-faded .tl-fill,
+.timeline.is-faded .tl-progress strong {
+  opacity: 0.55;
+}
+/* Horizontal scales (magnitude, wind, area) and source level steps. */
+.kv.kv-scale dd {
+  min-width: 0;
+}
+.scale-value {
+  font-weight: 650;
+}
+.scale {
+  display: block;
+  margin-top: 0.3rem;
+}
+.scale-track {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sc) 18%, var(--surface-2));
+  overflow: hidden;
+}
+.scale-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--sp);
+  min-width: 4px;
+  border-radius: 999px;
+  background: var(--sc);
+}
+.scale-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+.scale-tick-label {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.scale-ends {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+.steps {
+  display: flex;
+  gap: 3px;
+  margin-top: 0.3rem;
+}
+.step {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 0.64rem;
+  line-height: 1.6;
+  padding: 0 0.2rem;
+  border-radius: 4px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--c) 16%, var(--surface-2));
+  white-space: nowrap;
+}
+.step.is-below {
+  background: color-mix(in srgb, var(--c) 45%, var(--surface-2));
+  color: var(--text);
+}
+.step.is-on {
+  background: var(--c);
+  color: var(--t, #fff);
+  font-weight: 700;
+}
 .caveat {
   margin-top: 0.55rem;
   padding: 0.4rem 0.55rem;

@@ -95,7 +95,7 @@ function filtered(cat) {
 // --- Rendering ----------------------------------------------------------------
 
 function renderStrip() {
-  renderStatusStrip($('#status-strip'), { manifest: state.manifest, publish: state.publish, now: Date.now() });
+  renderStatusStrip($('#status-strip'), { manifest: state.manifest, publish: state.publish, now: Date.now(), layers: state.filters.layers });
 }
 
 function detailFor(feature, lngLat) {
@@ -500,6 +500,7 @@ function onFiltersChange(filters) {
   renderWindowChip();
   save('filters-v3', { ...filters, window: filters.window });
   pushMapData();
+  if (state.manifest) renderStrip(); // optional (US-only) sources count only while their layer is on
   if (state.selection) refreshCard();
   if (windowChanged) writeUrl();
 }

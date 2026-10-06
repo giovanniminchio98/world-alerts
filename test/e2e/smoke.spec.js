@@ -9,13 +9,24 @@ test('loads the map shell with disclaimer, demo banner and source freshness', as
   await page.goto('./');
   await expect(page.locator('#demo-banner')).toBeVisible();
   await expect(page.locator('#notice')).toContainText('It is not an emergency warning system');
-  await expect(page.locator('#status-strip')).toContainText('5 of 5 sources updated');
+  // US-only weather alerts are optional and off by default, so they are not counted.
+  await expect(page.locator('#status-strip')).toContainText('4 of 4 sources updated');
   await page.click('[data-open-status]');
   await expect(page.locator('#status-dialog')).toBeVisible();
   await expect(page.locator('#status-dialog .status-rows li')).toHaveCount(5);
+  await expect(page.locator('#status-dialog')).toContainText('Optional — layer turned off');
   await expect(page.locator('#status-dialog')).toContainText('Last published update');
   await page.click('#status-dialog [data-close]');
   await expect(page.locator('#status-dialog')).toBeHidden();
+});
+
+test('turning on US weather alerts counts that source again', async ({ page, isMobile }) => {
+  await page.goto('./');
+  await expect(page.locator('#status-strip')).toContainText('4 of 4 sources updated');
+  if (isMobile) await page.click('#btn-layers');
+  await page.locator('[data-layer="weather"]').dispatchEvent('click');
+  if (isMobile) await page.click('#panel-close');
+  await expect(page.locator('#status-strip')).toContainText('5 of 5 sources updated');
 });
 
 test('city search selects a place and shows the location status card', async ({ page }) => {

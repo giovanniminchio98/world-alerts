@@ -3,8 +3,8 @@ import { html } from '../lib/dom.js';
 import { describeSourceStatus } from '../shared/status.js';
 import { fmtAgo, fmtTime } from '../lib/format.js';
 
-const LABELS = { ok: 'Updated', stale: 'Stale', failed: 'Refresh failed', unavailable: 'Not connected' };
-const ICONS = { ok: '✓', stale: '◷', failed: '!', unavailable: '–' };
+const LABELS = { ok: 'Updated', stale: 'Stale', failed: 'Refresh failed', unavailable: 'Not connected', partial: 'Partly updated' };
+const ICONS = { ok: '✓', stale: '◷', failed: '!', unavailable: '–', partial: '◐' };
 
 export function statusBadge(status) {
   return html`<span class="status-badge status-${status}"><span aria-hidden="true">${ICONS[status] || '?'}</span> ${LABELS[status] || status}</span>`;

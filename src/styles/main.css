@@ -661,9 +661,15 @@ body.has-selection .layout {
   color: var(--ok);
   background: var(--ok-soft);
 }
-.status-stale {
+.status-stale,
+.status-partial {
   color: var(--stale);
   background: var(--stale-soft);
+}
+.status-optional-title {
+  font-size: 0.85rem;
+  margin: 1rem 0 0.4rem;
+  color: var(--muted);
 }
 .status-failed {
   color: var(--failed);

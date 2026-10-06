@@ -59,6 +59,10 @@ export function normalize(raw, ctx) {
   const features = [];
   let unplaced = 0;
   const usedZones = new Set();
+  // The NWS active-alerts list occasionally contains the same alert twice (e.g. when
+  // alerts change while it is being paged). Keep one copy: duplicate ids would fail
+  // validation and freeze this source on its previous data.
+  const seenIds = new Set();
   for (const f of raw.alerts.features || []) {
     const p = f.properties || {};
     const expires = parseUtc(p.ends) ?? parseUtc(p.expires);
@@ -79,7 +83,8 @@ export function normalize(raw, ctx) {
       continue;
     }
     const id = String(p.id || f.id || '').trim();
-    if (!id) continue;
+    if (!id || seenIds.has(id)) continue;
+    seenIds.add(id);
     const severity = p.severity || 'Unknown';
     features.push(
       makeIncident({

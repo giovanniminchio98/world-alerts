@@ -189,6 +189,12 @@ describe('NWS normalisation', () => {
   it('keeps the zone cache bounded and marks used zones', () => {
     const zones = out.files['cache/nws-zones.json'].zones;
     expect(Object.values(zones)[0].lastUsedUtc).toBe('2026-10-04T12:00:00Z');
+  });  it('keeps one copy of an alert the feed lists twice (it used to fail validation)', () => {
+    const raw = sampleNws(NOW);
+    raw.alerts.features.push(structuredClone(raw.alerts.features[0]));
+    const twice = incidents(nws.normalize(raw, ctx), nws.key);
+    expect(validateIncidentCollection(twice).valid).toBe(true);
+    expect(twice.features.length).toBe(fc.features.length);
   });
 });
 

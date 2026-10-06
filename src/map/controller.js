@@ -502,35 +502,33 @@ export class MapController {
   }
 
   popup(lngLat, element) {
-    this.currentPopup?.remove();
-    // Anchor the popup above the feature and move the feature towards the lower
-    // part of the view so the whole popup fits on screen.
+    this.closePopup();
+    const token = ++this.popupToken;
+    // Move the event towards the lower part of the view first, then open the popup
+    // once, already on the side with room and at its final size: no jump or resize
+    // after it appears. Near the poles (or at world zoom) the map cannot move the
+    // event that far, so the popup may open below the event instead.
     const height = this.map.getContainer().clientHeight;
-    this.easeTo({ center: lngLat, offset: [0, Math.round(height * 0.28)] });
-    // The header (type, title, close) stays fixed at the top while details scroll.
-    const close = closeButtonElement('Close details');
-    (element.querySelector('.detail-head') || element).append(close);
-    this.currentPopup = new this.ml.Popup({ maxWidth: '300px', anchor: 'bottom', closeButton: false, focusAfterOpen: false, className: 'incident-popup' })
-      .setLngLat(lngLat)
-      .setDOMContent(element)
-      .addTo(this.map);
-    const popup = this.currentPopup;
-    containTouchScroll(popup.getElement().querySelector('.maplibregl-popup-content'));
-    // Near the top or bottom of the world the map cannot move the event to the lower
-    // part of the screen, so once the camera settles the popup opens on the side with
-    // room and is never taller than that room (it scrolls inside instead).
-    const fit = () => this.fitPopup(popup, lngLat);
-    this.map.once('moveend', fit);
-    fit();
-    close.addEventListener('click', () => popup.remove());
-    close.focus({ preventScroll: true });
-    return popup;
+    const target = { center: lngLat, offset: [0, Math.round(height * 0.28)] };
+    let opened = false;
+    const open = () => {
+      if (opened || token !== this.popupToken) return;
+      opened = true;
+      this.openPopup(lngLat, element);
+    };
+    if (prefersReducedMotion()) {
+      this.map.jumpTo(target);
+      open();
+      return;
+    }
+    this.map.easeTo({ ...target, duration: 350 });
+    if (this.map.isMoving()) {
+      this.map.once('moveend', open);
+      setTimeout(open, 600); // fallback in case moveend never comes; runs at most once
+    } else open();
   }
 
-  fitPopup(popup, lngLat) {
-    if (!popup.isOpen()) return;
-    const content = popup.getElement()?.querySelector('.maplibregl-popup-content');
-    if (!content) return;
+  openPopup(lngLat, element) {
     const height = this.map.getContainer().clientHeight;
     const y = this.map.project(lngLat).y;
     const room = 22; // tip + margin
@@ -538,14 +536,24 @@ export class MapController {
     const below = height - y - room;
     const cssMax = Math.min(window.innerHeight * 0.5, 420);
     const anchor = above >= Math.min(cssMax, 240) || above >= below ? 'bottom' : 'top';
-    if (popup.options.anchor !== anchor) {
-      popup.options.anchor = anchor;
-      popup.setLngLat(lngLat); // re-place with the new anchor
-    }
+    // The header (type, title, close) stays fixed at the top while details scroll.
+    const close = closeButtonElement('Close details');
+    (element.querySelector('.detail-head') || element).append(close);
+    const popup = new this.ml.Popup({ maxWidth: '300px', anchor, closeButton: false, focusAfterOpen: false, className: 'incident-popup' })
+      .setLngLat(lngLat)
+      .setDOMContent(element)
+      .addTo(this.map);
+    this.currentPopup = popup;
+    const content = popup.getElement().querySelector('.maplibregl-popup-content');
+    // Never taller than the room on its side; it scrolls inside instead.
     content.style.maxHeight = `${Math.max(140, Math.min(cssMax, anchor === 'bottom' ? above : below))}px`;
+    containTouchScroll(content);
+    close.addEventListener('click', () => popup.remove());
+    close.focus({ preventScroll: true });
   }
 
   closePopup() {
+    this.popupToken = (this.popupToken || 0) + 1; // cancels a popup still waiting for the camera
     this.currentPopup?.remove();
   }
 

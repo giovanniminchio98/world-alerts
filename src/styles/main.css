@@ -781,6 +781,11 @@ body.has-selection .layout {
   border-top-color: var(--surface) !important;
   border-bottom-color: var(--surface) !important;
 }
+/* Popup opened in the standard spot while the map could not bring the event there
+   (near the poles, world zoom): no tip pointing at the wrong place. */
+.incident-popup.is-detached .maplibregl-popup-tip {
+  display: none;
+}
 .maplibregl-popup-close-button {
   font-size: 1.3rem;
   width: 32px;

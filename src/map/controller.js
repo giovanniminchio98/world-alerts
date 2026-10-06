@@ -505,9 +505,7 @@ export class MapController {
     this.closePopup();
     const token = ++this.popupToken;
     // Move the event towards the lower part of the view first, then open the popup
-    // once, already on the side with room and at its final size: no jump or resize
-    // after it appears. Near the poles (or at world zoom) the map cannot move the
-    // event that far, so the popup may open below the event instead.
+    // once, at its final place and size: no jump or resize after it appears.
     const height = this.map.getContainer().clientHeight;
     const target = { center: lngLat, offset: [0, Math.round(height * 0.28)] };
     let opened = false;
@@ -529,24 +527,36 @@ export class MapController {
   }
 
   openPopup(lngLat, element) {
+    // Every popup opens in the same place: centred, its bottom edge at the spot the
+    // camera moves the event to (78% down the map). Normally the event is right there
+    // under the popup's tip. Near the poles, or at world zoom, the map cannot move the
+    // event that far, so the popup still opens in that same spot, without the tip
+    // (it may cover the event's icon).
+    const width = this.map.getContainer().clientWidth;
     const height = this.map.getContainer().clientHeight;
-    const y = this.map.project(lngLat).y;
+    const spot = [width / 2, Math.round(height * 0.78)];
+    const at = this.map.project(lngLat);
+    const onSpot = Math.abs(at.x - spot[0]) <= 12 && Math.abs(at.y - spot[1]) <= 12;
     const room = 22; // tip + margin
-    const above = y - room;
-    const below = height - y - room;
     const cssMax = Math.min(window.innerHeight * 0.5, 420);
-    const anchor = above >= Math.min(cssMax, 240) || above >= below ? 'bottom' : 'top';
     // The header (type, title, close) stays fixed at the top while details scroll.
     const close = closeButtonElement('Close details');
     (element.querySelector('.detail-head') || element).append(close);
-    const popup = new this.ml.Popup({ maxWidth: '300px', anchor, closeButton: false, focusAfterOpen: false, className: 'incident-popup' })
-      .setLngLat(lngLat)
+    const popup = new this.ml.Popup({
+      maxWidth: '300px',
+      anchor: 'bottom',
+      closeButton: false,
+      focusAfterOpen: false,
+      className: onSpot ? 'incident-popup' : 'incident-popup is-detached',
+      offset: onSpot ? 0 : [0, -10], // same box position as with the (hidden) 10 px tip
+    })
+      .setLngLat(onSpot ? lngLat : this.map.unproject(spot))
       .setDOMContent(element)
       .addTo(this.map);
     this.currentPopup = popup;
     const content = popup.getElement().querySelector('.maplibregl-popup-content');
-    // Never taller than the room on its side; it scrolls inside instead.
-    content.style.maxHeight = `${Math.max(140, Math.min(cssMax, anchor === 'bottom' ? above : below))}px`;
+    // Never taller than the room above that spot; it scrolls inside instead.
+    content.style.maxHeight = `${Math.max(140, Math.min(cssMax, spot[1] - room))}px`;
     containTouchScroll(content);
     close.addEventListener('click', () => popup.remove());
     close.focus({ preventScroll: true });

@@ -255,3 +255,16 @@ test('a swipe past the end of a popup does not move the page or map', async ({ p
   // Past either end the swipe stops at the popup; scrolling its content still works.
   expect(blocked).toEqual({ pastTop: true, intoContent: false, pastBottom: true });
 });
+
+test('event details show a start → end timeline with the share elapsed', async ({ page }) => {
+  await page.goto('./?lat=23.81&lon=90.41&place=Dhaka&cc=BD');
+  const row = page.locator('#location-panel .cat-row[data-cat="disaster"]');
+  await expect(row).toBeVisible();
+  const expand = row.locator('.cat-expand');
+  if ((await expand.getAttribute('aria-expanded')) !== 'true') await expand.click();
+  await row.locator('.event-toggle').first().click();
+  const timeline = row.locator('.timeline').first();
+  await expect(timeline).toBeVisible();
+  await expect(timeline).toContainText(/\d+% elapsed/);
+  await expect(timeline.locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', /^\d+$/);
+});

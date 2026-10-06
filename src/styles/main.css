@@ -10,6 +10,9 @@
   --border: #d5dce5;
   --accent: #245f9e;
   --accent-soft: #e3edf8;
+  /* Close (X) buttons: white cross on red, same in light and dark themes (5.6:1 contrast). */
+  --close-bg: #c62828;
+  --close-bg-hover: #a51f1f;
   --accent-contrast: #ffffff;
   --ok: #2b7a4b;
   --ok-soft: #e3f3ea;
@@ -741,7 +744,7 @@ body.has-selection .layout {
   border-radius: var(--radius) !important;
   box-shadow: var(--shadow) !important;
   padding: 0 !important;
-  max-height: min(42vh, 360px);
+  max-height: min(50vh, 420px);
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -870,6 +873,52 @@ body.has-selection .layout {
 }
 .detail-summary {
   margin-top: 0.4rem;
+}
+/* Start → end timeline: a small vertical bar filled with the share of the period elapsed. */
+.kv.kv-timeline {
+  grid-template-columns: 1fr;
+  margin: 0.2rem 0;
+}
+.kv-timeline .timeline {
+  grid-column: 1 / -1;
+}
+.timeline {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  gap: 0.6rem;
+  align-items: stretch;
+}
+.tl-bar {
+  position: relative;
+  width: 8px;
+  min-height: 84px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tl-color) 18%, var(--surface-2));
+  overflow: hidden;
+}
+.tl-fill {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--tl-pct);
+  background: var(--tl-color);
+  border-radius: 999px;
+}
+.tl-rows {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+.tl-point {
+  display: flex;
+  flex-direction: column;
+}
+.tl-label {
+  color: var(--muted);
+  font-size: 0.82em;
+}
+.tl-progress strong {
+  color: var(--tl-color);
 }
 .caveat {
   margin-top: 0.55rem;
@@ -1748,15 +1797,15 @@ html {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
+  background: var(--close-bg);
+  color: #fff;
   cursor: pointer;
   line-height: 0;
 }
 .close-btn:hover {
-  background: var(--surface-2);
+  background: var(--close-bg-hover);
 }
 .close-btn svg {
   display: block;

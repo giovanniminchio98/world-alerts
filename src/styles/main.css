@@ -786,6 +786,22 @@ body.has-selection .layout {
 .incident-popup.is-detached .maplibregl-popup-tip {
   display: none;
 }
+/* Map centre while the map has keyboard focus (Enter checks this spot). */
+.map-crosshair {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+  background:
+    linear-gradient(var(--accent), var(--accent)) center / 2px 100% no-repeat,
+    linear-gradient(var(--accent), var(--accent)) center / 100% 2px no-repeat;
+  filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff);
+}
+.map-crosshair[hidden] {
+  display: none;
+}
 .maplibregl-popup-close-button {
   font-size: 1.3rem;
   width: 32px;

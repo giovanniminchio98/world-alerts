@@ -102,7 +102,45 @@ export class MapController {
       this.map.getCanvas().style.cursor = hit ? 'pointer' : '';
     });
     this.map.on('moveend', () => this.opts.onMove?.(this.getView()));
+    this.bindKeyboardCentre();
     return this;
+  }
+
+  /**
+   * Keyboard / screen-reader way to check a place (touch and mouse users just tap the
+   * map): when the map has keyboard focus a crosshair marks its centre; the arrow keys
+   * move the map and Enter checks the status at the crosshair.
+   */
+  bindKeyboardCentre() {
+    const canvas = this.map.getCanvas();
+    canvas.setAttribute('aria-label', 'Map. Use the arrow keys to move it and press Enter to check the status at the centre, marked by a crosshair.');
+    const cross = document.createElement('div');
+    cross.className = 'map-crosshair';
+    cross.hidden = true;
+    cross.setAttribute('aria-hidden', 'true');
+    this.map.getCanvasContainer().append(cross);
+    const place = () => {
+      const p = this.map.project(this.map.getCenter());
+      cross.style.left = `${p.x}px`;
+      cross.style.top = `${p.y}px`;
+    };
+    canvas.addEventListener('focus', () => {
+      if (!canvas.matches(':focus-visible')) return; // keyboard focus only, not a tap or click
+      cross.hidden = false;
+      place();
+    });
+    canvas.addEventListener('blur', () => (cross.hidden = true));
+    this.map.on('move', () => {
+      if (!cross.hidden) place();
+    });
+    canvas.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      cross.hidden = false;
+      place();
+      const c = this.map.getCenter();
+      this.opts.onSelect?.(c.lng, c.lat, 'centre');
+    });
   }
 
   existing(ids) {

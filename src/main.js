@@ -450,7 +450,7 @@ async function initMap() {
       units: prefs.units,
       view: url.view,
       onReady: () => pushMapData(),
-      onSelect: (lon, lat) => selectLocation({ lon, lat, source: 'click' }, { fly: false }),
+      onSelect: (lon, lat, source = 'click') => selectLocation({ lon, lat, source }, { fly: false }),
       onFeatureClick,
       onMove: () => {
         updateFires();
@@ -526,11 +526,6 @@ function bindChrome() {
   });
   $('#btn-share').addEventListener('click', share);
   $('#btn-reset').addEventListener('click', () => state.map?.resetWorld());
-  $('#btn-centre').addEventListener('click', () => {
-    if (!state.map) return;
-    const { center } = state.map.getView();
-    selectLocation({ lon: center[0], lat: center[1], source: 'centre' }, { fly: false });
-  });
   const layersBtn = $('#btn-layers');
   layersBtn.addEventListener('click', () => {
     const open = !document.body.classList.contains('panel-open');

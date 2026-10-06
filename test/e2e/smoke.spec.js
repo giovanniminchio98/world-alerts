@@ -280,3 +280,20 @@ test('earthquake details show the magnitude on a 0–10 scale', async ({ page })
   await expect(scale).toContainText(/M \d\.\d/);
   await expect(scale).toContainText('on a 0–10 scale');
 });
+
+test('keyboard users check the map centre with Enter (crosshair shown)', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'keyboard flow');
+  await page.goto('./#map=4/0/-30');
+  await expect(page.locator('#btn-centre')).toHaveCount(0); // no separate centre button any more
+  const canvas = page.locator('.maplibregl-canvas');
+  await canvas.waitFor();
+  const box = await canvas.boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); // a click focuses the map too…
+  await expect(page.locator('.map-crosshair')).toBeHidden(); // …but shows no crosshair
+  await page.locator('#location-panel [data-close], #location-panel .close-btn').first().click();
+  await page.keyboard.press('Shift'); // the user is now on the keyboard
+  await canvas.focus();
+  await expect(page.locator('.map-crosshair')).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#location-panel')).toBeVisible();
+});
